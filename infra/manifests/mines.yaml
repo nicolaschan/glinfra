@@ -1,0 +1,72 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mines
+---
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
+  name: mines
+  namespace: mines
+  labels:
+    app: mines
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mines
+  template:
+    metadata:
+      name: mines
+      labels:
+        app: mines
+    spec:
+      containers:
+      - image: "ghcr.io/nicolaschan/mines:v1.0.5"
+        name: mines-0
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mines
+  namespace: mines
+  labels:
+    app: mines
+spec:
+  selector:
+    app: mines
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: mines
+  namespace: mines
+  annotations:
+    "cert-manager.io/cluster-issuer": letsencrypt-prod
+    "cert-manager.io/private-key-algorithm": ECDSA
+    "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure"
+    "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
+spec:
+  rules:
+  - host: "mines.nicolaschan.com"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: mines
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - "mines.nicolaschan.com"
+    secretName: mines-cert
