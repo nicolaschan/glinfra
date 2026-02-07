@@ -1,4 +1,4 @@
-import gleam/option.{type Option, None, Some}
+import gleam/option.{type Option, Some}
 
 pub type Storage {
   Storage(
@@ -14,13 +14,18 @@ pub type StorageRef {
 }
 
 pub fn new(name: String, size: String) -> Storage {
-  Storage(name: name, size: size, storage_class: None, access_modes: [
-    "ReadWriteOnce",
-  ])
+  Storage(
+    name: name,
+    size: size,
+    storage_class: Some("local-path"),
+    access_modes: [
+      "ReadWriteOnce",
+    ],
+  )
 }
 
 pub fn with_storage_class(storage: Storage, class: String) -> Storage {
-  Storage(..storage, storage_class: Some(class))
+  Storage(..storage, storage_class: option.Some(class))
 }
 
 pub fn with_access_modes(storage: Storage, modes: List(String)) -> Storage {
