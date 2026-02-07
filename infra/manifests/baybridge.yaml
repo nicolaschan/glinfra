@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: baybridge
+---
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
+  name: baybridge
+  namespace: baybridge
+  labels:
+    app: baybridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: baybridge
+  template:
+    metadata:
+      name: baybridge
+      labels:
+        app: baybridge
+    spec:
+      containers:
+      - name: baybridge
+        image: "ghcr.io/nicolaschan/baybridge:master-20296814492"
+        ports:
+        - containerPort: 3000
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: baybridge
+  namespace: baybridge
+  labels:
+    app: baybridge
+  annotations:
+    "traefik.ingress.kubernetes.io/service.serversscheme": h2c
+spec:
+  selector:
+    app: baybridge
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: baybridge
+  namespace: baybridge
+  annotations:
+    "cert-manager.io/cluster-issuer": letsencrypt-prod
+    "cert-manager.io/private-key-algorithm": ECDSA
+    "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure"
+    "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
+spec:
+  rules:
+  - host: "baybridge.nicolaschan.com"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: baybridge
+            port:
+              number: 3000
+  tls:
+  - hosts:
+    - "baybridge.nicolaschan.com"
+    secretName: baybridge-cert
+---
+apiVersion: "image.toolkit.fluxcd.io/v1"
+kind: ImageRepository
+metadata:
+  name: ghcr-io-nicolaschan-baybridge-repo
+  namespace: baybridge
+spec:
+  image: "ghcr.io/nicolaschan/baybridge"
+  interval: "5m"
+---
+apiVersion: "image.toolkit.fluxcd.io/v1"
+kind: ImagePolicy
+metadata:
+  name: ghcr-io-nicolaschan-baybridge
+  namespace: baybridge
+spec:
+  filterTags:
+    pattern: "^master-[0-9]+$"
+  imageRepositoryRef:
+    name: ghcr-io-nicolaschan-baybridge-repo
+  policy:
+    alphabetical:
+      order: asc
+---
+apiVersion: "image.toolkit.fluxcd.io/v1"
+kind: ImageUpdateAutomation
+metadata:
+  name: ghcr-io-nicolaschan-baybridge-update
+  namespace: baybridge
+spec:
+  git:
+    commit:
+      author:
+        email: "fluxcdbot@nicolaschan.com"
+        name: fluxcdbot
+      messageTemplate: "chore: update baybridge image"
+    push:
+      branch: master
+  interval: "5m"
+  sourceRef:
+    kind: GitRepository
+    name: nicolaschan-infra
+    namespace: default
+  update:
+    path: "./apps/monad/baybridge"
