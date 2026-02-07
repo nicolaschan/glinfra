@@ -1,0 +1,20 @@
+---
+apiVersion: "traefik.io/v1alpha1"
+kind: Middleware
+metadata:
+  name: hsts-middleware
+  namespace: default
+spec:
+  headers:
+    customResponseHeaders:
+      Strict-Transport-Security: "max-age=31536000"
+---
+apiVersion: "traefik.io/v1alpha1"
+kind: Middleware
+metadata:
+  name: https-redirect-middleware
+  namespace: default
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true

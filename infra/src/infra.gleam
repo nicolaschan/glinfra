@@ -3,6 +3,8 @@ import glinfra/compile
 import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
 import infra/apps/baybridge
+import infra/middleware/hsts
+import infra/middleware/https_redirect
 
 pub fn main() -> Nil {
   let update_config =
@@ -18,8 +20,8 @@ pub fn main() -> Nil {
   let traefik_provider =
     traefik.provider(
       TraefikConfig(entrypoints: ["web", "websecure"], middlewares: [
-        "default-hsts-middleware@kubernetescrd",
-        "default-https-redirect-middleware@kubernetescrd",
+        hsts.middleware(),
+        https_redirect.middleware(),
       ]),
     )
 

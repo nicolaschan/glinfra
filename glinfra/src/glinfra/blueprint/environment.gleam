@@ -1,3 +1,4 @@
+import cymbal
 import gleam/option.{type Option, None, Some}
 import glinfra/blueprint/app.{type App}
 import glinfra/blueprint/stack.{type Stack}
@@ -7,14 +8,15 @@ pub type Environment {
     name: String,
     stacks: List(Stack),
     update: Option(UpdateConfig),
-    providers: List(AnnotationProvider),
+    providers: List(Provider),
   )
 }
 
-pub type AnnotationProvider {
-  AnnotationProvider(
-    service: fn(App) -> List(#(String, String)),
-    ingress: fn(App) -> List(#(String, String)),
+pub type Provider {
+  Provider(
+    service_annotations: fn(App) -> List(#(String, String)),
+    ingress_annotations: fn(App) -> List(#(String, String)),
+    resources: fn() -> List(#(String, List(cymbal.Yaml))),
   )
 }
 
@@ -41,9 +43,6 @@ pub fn with_update(env: Environment, config: UpdateConfig) -> Environment {
   Environment(..env, update: Some(config))
 }
 
-pub fn add_provider(
-  env: Environment,
-  provider: AnnotationProvider,
-) -> Environment {
+pub fn add_provider(env: Environment, provider: Provider) -> Environment {
   Environment(..env, providers: [provider, ..env.providers])
 }

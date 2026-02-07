@@ -1,10 +1,12 @@
 import glinfra/blueprint/app.{type App}
-import glinfra/blueprint/environment.{
-  type AnnotationProvider, AnnotationProvider,
-}
+import glinfra/blueprint/environment.{type Provider, Provider}
 
-pub fn provider() -> AnnotationProvider {
-  AnnotationProvider(service: fn(_) { [] }, ingress: ingress_annotations)
+pub fn provider() -> Provider {
+  Provider(
+    service_annotations: fn(_) { [] },
+    ingress_annotations: ingress_annotations,
+    resources: fn() { [] },
+  )
 }
 
 fn ingress_annotations(_application: App) -> List(#(String, String)) {

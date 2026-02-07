@@ -3,6 +3,7 @@ version = "1.0.0"
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+cymbal = ">= 1.0.0 and < 2.0.0"
 glinfra = { path = "../glinfra" }
 
 [dev-dependencies]

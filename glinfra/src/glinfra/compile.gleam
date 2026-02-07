@@ -6,7 +6,7 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import glinfra/blueprint/app.{type App}
 import glinfra/blueprint/environment.{
-  type AnnotationProvider, type Environment, type UpdateConfig,
+  type Environment, type Provider, type UpdateConfig,
 }
 import glinfra/blueprint/image.{type Image}
 import glinfra/blueprint/stack.{type Stack}
@@ -22,27 +22,19 @@ import simplifile
 
 pub fn manifest(env: Environment, output_dir: String) {
   env
-  |> to_k8s_yaml
+  |> env_to_cymbal
   |> write_manifests(output_dir)
 }
 
-/// Compiles an environment into a list of (stack_name, yaml) pairs,
-/// one entry per stack.
-pub fn to_k8s_yaml(env: Environment) -> List(#(String, String)) {
-  list.map(env.stacks, fn(stack) {
-    let yaml =
-      stack_to_cymbal(stack, env.update, env.providers)
-      |> list.map(cymbal.encode)
-      |> string.join("")
-    #(stack.name, yaml)
-  })
-}
-
-fn write_manifests(manifests: List(#(String, String)), output_dir: String) {
+fn write_manifests(
+  manifests: List(#(String, List(cymbal.Yaml))),
+  output_dir: String,
+) {
   let _ = simplifile.create_directory_all(output_dir)
 
   list.each(manifests, fn(entry) {
     let #(name, yaml) = entry
+    let yaml = list.map(yaml, cymbal.encode) |> string.join("")
     let path = output_dir <> "/" <> name <> ".yaml"
     io.println(yaml)
     case simplifile.write(to: path, contents: yaml) {
@@ -52,10 +44,22 @@ fn write_manifests(manifests: List(#(String, String)), output_dir: String) {
   })
 }
 
+fn env_to_cymbal(env: Environment) -> List(#(String, List(cymbal.Yaml))) {
+  let stack_manifests =
+    list.map(env.stacks, fn(stack) {
+      let yamls = stack_to_cymbal(stack, env.update, env.providers)
+      #(stack.name, yamls)
+    })
+
+  let provider_resources = list.flat_map(env.providers, fn(p) { p.resources() })
+
+  list.append(stack_manifests, provider_resources)
+}
+
 fn stack_to_cymbal(
   stack: Stack,
   update: Option(UpdateConfig),
-  providers: List(AnnotationProvider),
+  providers: List(Provider),
 ) -> List(cymbal.Yaml) {
   let ns = namespace.new(stack.name)
   let docs = [namespace.to_cymbal(ns)]
@@ -69,15 +73,15 @@ fn stack_to_cymbal(
 fn app_to_cymbal(
   ns: String,
   update: Option(UpdateConfig),
-  providers: List(AnnotationProvider),
+  providers: List(Provider),
   application: App,
 ) -> List(cymbal.Yaml) {
   let labels = [#("app", application.name)]
 
   let service_annotations =
-    list.flat_map(providers, fn(p) { p.service(application) })
+    list.flat_map(providers, fn(p) { p.service_annotations(application) })
   let ingress_annotations =
-    list.flat_map(providers, fn(p) { p.ingress(application) })
+    list.flat_map(providers, fn(p) { p.ingress_annotations(application) })
 
   let docs = [
     app_to_deployment(ns, application, labels)

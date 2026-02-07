@@ -1,19 +1,34 @@
+import cymbal
 import gleam/list
+import gleam/option.{None, Some}
 import gleam/string
 import glinfra/blueprint/app.{type App}
-import glinfra/blueprint/environment.{
-  type AnnotationProvider, AnnotationProvider,
-}
+import glinfra/blueprint/environment.{type Provider, Provider}
+import glinfra_providers/traefik/middleware.{type Middleware}
 
 pub type TraefikConfig {
-  TraefikConfig(entrypoints: List(String), middlewares: List(String))
+  TraefikConfig(entrypoints: List(String), middlewares: List(Middleware))
 }
 
-pub fn provider(config: TraefikConfig) -> AnnotationProvider {
-  AnnotationProvider(service: service_annotations, ingress: ingress_annotations(
-    config,
-    _,
-  ))
+pub fn provider(config: TraefikConfig) -> Provider {
+  Provider(
+    service_annotations: service_annotations,
+    ingress_annotations: ingress_annotations(config, _),
+    resources: resources(config),
+  )
+}
+
+fn resources(
+  config: TraefikConfig,
+) -> fn() -> List(#(String, List(cymbal.Yaml))) {
+  fn() {
+    case config.middlewares {
+      [] -> []
+      mws -> [
+        #("traefik-middlewares", list.map(mws, middleware.to_cymbal)),
+      ]
+    }
+  }
 }
 
 fn service_annotations(application: App) -> List(#(String, String)) {
@@ -45,10 +60,20 @@ fn ingress_annotations(
       list.append(annotations, [
         #(
           "traefik.ingress.kubernetes.io/router.middlewares",
-          string.join(mws, ","),
+          string.join(list.map(mws, middleware_ref), ","),
         ),
       ])
   }
 
   annotations
+}
+
+/// Derives the Traefik middleware annotation reference from a Middleware object.
+/// Format: <namespace>-<name>@kubernetescrd
+fn middleware_ref(mw: Middleware) -> String {
+  let ns = case mw.metadata.namespace {
+    Some(namespace) -> namespace
+    None -> "default"
+  }
+  ns <> "-" <> mw.metadata.name <> "@kubernetescrd"
 }
