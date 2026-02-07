@@ -85,7 +85,12 @@ fn app_to_cymbal(
   ]
 
   let docs = case app_to_ingress(ns, application, labels, ingress_annotations) {
-    Some(ing) -> list.append(docs, [ingress.to_cymbal(ing)])
+    Some(ing) ->
+      list.append(docs, [
+        ing
+        |> apply_ingress_plugins(application.plugins)
+        |> ingress.to_cymbal,
+      ])
     None -> docs
   }
 
@@ -104,6 +109,19 @@ fn apply_deployment_plugins(
   list.fold(plugins, dep, fn(d, plugin) {
     case plugin {
       app.DeploymentPlugin(modify) -> modify(d)
+      app.IngressPlugin(_) -> d
+    }
+  })
+}
+
+fn apply_ingress_plugins(
+  ing: ingress.Ingress,
+  plugins: List(app.AppPlugin),
+) -> ingress.Ingress {
+  list.fold(plugins, ing, fn(i, plugin) {
+    case plugin {
+      app.IngressPlugin(modify) -> modify(i)
+      app.DeploymentPlugin(_) -> i
     }
   })
 }

@@ -22,7 +22,7 @@ pub fn stack() -> Stack {
   let openwebui =
     app.new("openwebui")
     |> app.expose_http1(8080, "openwebui.app.zeromap.net")
-    |> app.add_ingress_middleware(
+    |> app.add_plugin(
       traefik.ingress_middleware(local_ipwhitelist.middleware()),
     )
     |> app.add_container(
