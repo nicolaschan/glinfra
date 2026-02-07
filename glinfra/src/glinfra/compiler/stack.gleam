@@ -78,6 +78,7 @@ fn app_to_cymbal(
 
   let docs = [
     app_to_deployment(ns, application, labels)
+      |> apply_deployment_plugins(application.plugins)
       |> deployment.to_cymbal,
     app_to_service(ns, application, labels, service_annotations)
       |> service.to_cymbal,
@@ -94,6 +95,17 @@ fn app_to_cymbal(
     })
 
   docs
+}
+
+fn apply_deployment_plugins(
+  dep: deployment.Deployment,
+  plugins: List(app.AppPlugin),
+) -> deployment.Deployment {
+  list.fold(plugins, dep, fn(d, plugin) {
+    case plugin {
+      app.DeploymentPlugin(modify) -> modify(d)
+    }
+  })
 }
 
 fn app_to_deployment(
@@ -143,6 +155,7 @@ fn app_to_deployment(
         ports: ports,
         env: [],
         volume_mounts: volume_mounts,
+        resources: deployment.ResourceRequirements(limits: [], requests: []),
       )
     })
 
@@ -166,6 +179,7 @@ fn app_to_deployment(
         ),
         containers: containers,
         volumes: volumes,
+        runtime_class_name: None,
       ),
     ),
   )

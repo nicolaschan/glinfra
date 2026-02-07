@@ -7,6 +7,61 @@ metadata:
 apiVersion: "apps/v1"
 kind: Deployment
 metadata:
+  name: ollama
+  namespace: ollama
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: ollama
+      labels:
+        app: ollama
+    spec:
+      containers:
+      - image: "ollama/ollama:0.12.10"
+        name: ollama-0
+        ports:
+        - containerPort: 11434
+          protocol: TCP
+        volumeMounts:
+        - mountPath: "/root/.ollama"
+          name: ollama-data-volume
+        resources:
+          limits:
+            "nvidia.com/gpu-all": "1"
+          requests:
+            "nvidia.com/gpu-all": "1"
+      runtimeClassName: nvidia
+      volumes:
+      - name: ollama-data-volume
+        persistentVolumeClaim:
+          claimName: ollama-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: ollama
+  labels:
+    app: ollama
+spec:
+  selector:
+    app: ollama
+  ports:
+  - port: 11434
+    targetPort: 11434
+    protocol: TCP
+---
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
   name: openwebui
   namespace: ollama
   labels:
@@ -79,6 +134,19 @@ spec:
   - hosts:
     - "openwebui.app.zeromap.net"
     secretName: openwebui-cert
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-data
+  namespace: ollama
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "16G"
+  storageClassName: local-path
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

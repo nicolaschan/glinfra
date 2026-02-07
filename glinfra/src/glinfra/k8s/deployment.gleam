@@ -24,6 +24,13 @@ pub type Strategy {
   RollingUpdate
 }
 
+pub type ResourceRequirements {
+  ResourceRequirements(
+    limits: List(#(String, String)),
+    requests: List(#(String, String)),
+  )
+}
+
 pub type Container {
   Container(
     name: String,
@@ -31,6 +38,7 @@ pub type Container {
     ports: List(ContainerPort),
     env: List(EnvVar),
     volume_mounts: List(VolumeMount),
+    resources: ResourceRequirements,
   )
 }
 
@@ -39,6 +47,7 @@ pub type PodTemplateSpec {
     metadata: ObjectMeta,
     containers: List(Container),
     volumes: List(Volume),
+    runtime_class_name: Option(String),
   )
 }
 
@@ -97,6 +106,14 @@ fn pod_template_to_cymbal(t: PodTemplateSpec) -> cymbal.Yaml {
   let spec_fields = [
     #("containers", cymbal.array(list.map(t.containers, container_to_cymbal))),
   ]
+
+  let spec_fields = case t.runtime_class_name {
+    Some(name) ->
+      list.append(spec_fields, [
+        #("runtimeClassName", cymbal.string(name)),
+      ])
+    None -> spec_fields
+  }
 
   let spec_fields = case t.volumes {
     [] -> spec_fields
@@ -158,6 +175,24 @@ fn container_to_cymbal(c: Container) -> cymbal.Yaml {
       ])
   }
 
+  let fields = case c.resources.limits, c.resources.requests {
+    [], [] -> fields
+    limits, requests -> {
+      let res_fields = case limits {
+        [] -> []
+        _ -> [#("limits", k8s.string_pairs_to_cymbal(limits))]
+      }
+      let res_fields = case requests {
+        [] -> res_fields
+        _ ->
+          list.append(res_fields, [
+            #("requests", k8s.string_pairs_to_cymbal(requests)),
+          ])
+      }
+      list.append(fields, [#("resources", cymbal.block(res_fields))])
+    }
+  }
+
   cymbal.block(fields)
 }
 
@@ -217,9 +252,11 @@ pub fn new(
             ports: [ContainerPort(container_port: port, protocol: Some("TCP"))],
             env: [],
             volume_mounts: [],
+            resources: ResourceRequirements(limits: [], requests: []),
           ),
         ],
         volumes: [],
+        runtime_class_name: None,
       ),
     ),
   )

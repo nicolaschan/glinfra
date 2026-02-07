@@ -1,12 +1,18 @@
 import gleam/list
 import glinfra/blueprint/container.{type Container}
+import glinfra/k8s/deployment
 
 pub type App {
-  App(name: String, port: List(Port), containers: List(Container))
+  App(
+    name: String,
+    port: List(Port),
+    containers: List(Container),
+    plugins: List(AppPlugin),
+  )
 }
 
 pub fn new(name: String) -> App {
-  App(name, [], [])
+  App(name, [], [], [])
 }
 
 pub fn expose_http1(app: App, number: Int, host: String) -> App {
@@ -36,20 +42,13 @@ pub fn image(app: App, image_string: String) -> App {
   app |> add_container(container.new(image_string))
 }
 
-pub fn add_ingress_middleware(
-  app: App,
-  host: String,
-  mw: IngressMiddleware,
-) -> App {
+pub fn add_ingress_middleware(app: App, mw: IngressMiddleware) -> App {
   let port =
     list.map(app.port, fn(p) {
       Port(
         ..p,
         ingress: list.map(p.ingress, fn(ing) {
-          case ing.host == host {
-            True -> Ingress(..ing, middlewares: [mw, ..ing.middlewares])
-            False -> ing
-          }
+          Ingress(..ing, middlewares: [mw, ..ing.middlewares])
         }),
       )
     })
@@ -66,4 +65,12 @@ pub type Ingress {
 
 pub type IngressMiddleware {
   IngressMiddleware(namespace: String, name: String)
+}
+
+pub type AppPlugin {
+  DeploymentPlugin(modify: fn(deployment.Deployment) -> deployment.Deployment)
+}
+
+pub fn add_plugin(app: App, plugin: AppPlugin) -> App {
+  App(..app, plugins: [plugin, ..app.plugins])
 }
