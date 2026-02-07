@@ -1,0 +1,72 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: x3dtictactoe
+---
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
+  name: x3dtictactoe
+  namespace: x3dtictactoe
+  labels:
+    app: x3dtictactoe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: x3dtictactoe
+  template:
+    metadata:
+      name: x3dtictactoe
+      labels:
+        app: x3dtictactoe
+    spec:
+      containers:
+      - name: x3dtictactoe
+        image: "ghcr.io/nicolaschan/3dtictactoe:v1.0.0"
+        ports:
+        - containerPort: 9002
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: x3dtictactoe
+  namespace: x3dtictactoe
+  labels:
+    app: x3dtictactoe
+spec:
+  selector:
+    app: x3dtictactoe
+  ports:
+  - port: 9002
+    targetPort: 9002
+    protocol: TCP
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: x3dtictactoe
+  namespace: x3dtictactoe
+  annotations:
+    "cert-manager.io/cluster-issuer": letsencrypt-prod
+    "cert-manager.io/private-key-algorithm": ECDSA
+    "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure"
+    "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
+spec:
+  rules:
+  - host: "3d.nicolaschan.com"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: x3dtictactoe
+            port:
+              number: 9002
+  tls:
+  - hosts:
+    - "3d.nicolaschan.com"
+    secretName: x3dtictactoe-cert

@@ -4,7 +4,7 @@ import glinfra/blueprint/stack.{type Stack}
 
 const version_file_path = "src/infra/apps/baybridge-version.yaml"
 
-const args: List(String) = [
+const args = [
   "serve",
   "--peer",
   "https://baybridge.neelay.net",
@@ -17,6 +17,6 @@ pub fn stack() -> Stack {
 
   app.new("baybridge")
   |> app.expose_http2(3000, "baybridge.nicolaschan.com")
-  |> app.add_container(baybridge_image, args)
+  |> app.add_image_with_args(baybridge_image, args)
   |> stack.singleton
 }

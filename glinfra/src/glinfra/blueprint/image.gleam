@@ -11,8 +11,8 @@ pub type ImageUpdate {
   ImageUpdate(pattern: String)
 }
 
-pub fn latest(name: String) -> Image {
-  Image(name, "latest", None)
+pub fn new(name: String, tag: String) -> Image {
+  Image(name, tag, None)
 }
 
 pub fn from_version_file(path: String) -> Image {
