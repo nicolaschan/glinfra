@@ -1,5 +1,4 @@
-import gleam/option.{type Option, None, Some}
-import glinfra/blueprint/image.{type Image}
+import glinfra/blueprint/container.{type Container}
 
 pub type App {
   App(name: String, port: List(Port), containers: List(Container))
@@ -19,6 +18,11 @@ pub fn expose_http2(app: App, number: Int, host: String) -> App {
   app |> expose(port)
 }
 
+pub fn expose_tcp(app: App, number: Int) -> App {
+  let port = Port(number, False, [])
+  app |> expose(port)
+}
+
 pub fn expose(app: App, port: Port) -> App {
   App(..app, port: [port, ..app.port])
 }
@@ -27,12 +31,8 @@ pub fn add_container(app: App, container: Container) -> App {
   App(..app, containers: [container, ..app.containers])
 }
 
-pub fn add_image_with_args(app: App, image: Image, args: List(String)) -> App {
-  app |> add_container(Container(image, Some(args)))
-}
-
-pub fn add_container_image(app: App, image: Image) -> App {
-  app |> add_container(Container(image, None))
+pub fn image(app: App, image_string: String) -> App {
+  app |> add_container(container.new(image_string))
 }
 
 pub type Port {
@@ -41,8 +41,4 @@ pub type Port {
 
 pub type Ingress {
   Ingress(host: String)
-}
-
-pub type Container {
-  Container(image: Image, args: Option(List(String)))
 }

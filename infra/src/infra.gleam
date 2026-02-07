@@ -3,6 +3,7 @@ import glinfra/compile
 import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
 import infra/apps/baybridge
+import infra/apps/market
 import infra/apps/x3dtictactoe
 import infra/middleware/hsts
 import infra/middleware/https_redirect
@@ -32,5 +33,6 @@ pub fn main() -> Nil {
   |> environment.add_provider(letsencrypt.provider())
   |> environment.add_stack(baybridge.stack())
   |> environment.add_stack(x3dtictactoe.stack())
+  |> environment.add_stack(market.stack())
   |> compile.manifest("manifests")
 }

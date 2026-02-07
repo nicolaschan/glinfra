@@ -11,23 +11,42 @@ pub type EnvVar {
   EnvVar(name: String, value: String)
 }
 
+pub type VolumeMount {
+  VolumeMount(name: String, mount_path: String)
+}
+
+pub type Volume {
+  PvcVolume(name: String, claim_name: String)
+}
+
+pub type Strategy {
+  Recreate
+  RollingUpdate
+}
+
 pub type Container {
   Container(
     name: String,
     image: String,
     ports: List(ContainerPort),
     env: List(EnvVar),
+    volume_mounts: List(VolumeMount),
   )
 }
 
 pub type PodTemplateSpec {
-  PodTemplateSpec(metadata: ObjectMeta, containers: List(Container))
+  PodTemplateSpec(
+    metadata: ObjectMeta,
+    containers: List(Container),
+    volumes: List(Volume),
+  )
 }
 
 pub type DeploymentSpec {
   DeploymentSpec(
     replicas: Int,
     selector: LabelSelector,
+    strategy: Option(Strategy),
     template: PodTemplateSpec,
   )
 }
@@ -50,32 +69,66 @@ pub fn to_yaml(d: Deployment) -> String {
 }
 
 fn deployment_spec_to_cymbal(s: DeploymentSpec) -> cymbal.Yaml {
-  cymbal.block([
+  let fields = [
     #("replicas", cymbal.int(s.replicas)),
     #("selector", k8s.label_selector_to_cymbal(s.selector)),
-    #("template", pod_template_to_cymbal(s.template)),
-  ])
+  ]
+
+  let fields = case s.strategy {
+    Some(strategy) ->
+      list.append(fields, [#("strategy", strategy_to_cymbal(strategy))])
+    None -> fields
+  }
+
+  let fields =
+    list.append(fields, [#("template", pod_template_to_cymbal(s.template))])
+
+  cymbal.block(fields)
+}
+
+fn strategy_to_cymbal(s: Strategy) -> cymbal.Yaml {
+  case s {
+    Recreate -> cymbal.block([#("type", cymbal.string("Recreate"))])
+    RollingUpdate -> cymbal.block([#("type", cymbal.string("RollingUpdate"))])
+  }
 }
 
 fn pod_template_to_cymbal(t: PodTemplateSpec) -> cymbal.Yaml {
+  let spec_fields = [
+    #("containers", cymbal.array(list.map(t.containers, container_to_cymbal))),
+  ]
+
+  let spec_fields = case t.volumes {
+    [] -> spec_fields
+    vols ->
+      list.append(spec_fields, [
+        #("volumes", cymbal.array(list.map(vols, volume_to_cymbal))),
+      ])
+  }
+
   cymbal.block([
     #("metadata", k8s.object_meta_to_cymbal(t.metadata)),
-    #(
-      "spec",
-      cymbal.block([
-        #(
-          "containers",
-          cymbal.array(list.map(t.containers, container_to_cymbal)),
-        ),
-      ]),
-    ),
+    #("spec", cymbal.block(spec_fields)),
   ])
+}
+
+fn volume_to_cymbal(v: Volume) -> cymbal.Yaml {
+  case v {
+    PvcVolume(name, claim_name) ->
+      cymbal.block([
+        #("name", cymbal.string(name)),
+        #(
+          "persistentVolumeClaim",
+          cymbal.block([#("claimName", cymbal.string(claim_name))]),
+        ),
+      ])
+  }
 }
 
 fn container_to_cymbal(c: Container) -> cymbal.Yaml {
   let fields = [
-    #("name", cymbal.string(c.name)),
     #("image", cymbal.string(c.image)),
+    #("name", cymbal.string(c.name)),
   ]
 
   let fields = case c.ports {
@@ -94,7 +147,25 @@ fn container_to_cymbal(c: Container) -> cymbal.Yaml {
       ])
   }
 
+  let fields = case c.volume_mounts {
+    [] -> fields
+    mounts ->
+      list.append(fields, [
+        #(
+          "volumeMounts",
+          cymbal.array(list.map(mounts, volume_mount_to_cymbal)),
+        ),
+      ])
+  }
+
   cymbal.block(fields)
+}
+
+fn volume_mount_to_cymbal(m: VolumeMount) -> cymbal.Yaml {
+  cymbal.block([
+    #("mountPath", cymbal.string(m.mount_path)),
+    #("name", cymbal.string(m.name)),
+  ])
 }
 
 fn container_port_to_cymbal(p: ContainerPort) -> cymbal.Yaml {
@@ -131,6 +202,7 @@ pub fn new(
     spec: DeploymentSpec(
       replicas: replicas,
       selector: k8s.LabelSelector(match_labels: labels),
+      strategy: None,
       template: PodTemplateSpec(
         metadata: k8s.ObjectMeta(
           name: name,
@@ -144,8 +216,10 @@ pub fn new(
             image: image,
             ports: [ContainerPort(container_port: port, protocol: Some("TCP"))],
             env: [],
+            volume_mounts: [],
           ),
         ],
+        volumes: [],
       ),
     ),
   )

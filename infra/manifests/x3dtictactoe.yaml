@@ -23,8 +23,8 @@ spec:
         app: x3dtictactoe
     spec:
       containers:
-      - name: x3dtictactoe
-        image: "ghcr.io/nicolaschan/3dtictactoe:v1.0.0"
+      - image: "ghcr.io/nicolaschan/3dtictactoe:v1.0.0"
+        name: x3dtictactoe-0
         ports:
         - containerPort: 9002
           protocol: TCP

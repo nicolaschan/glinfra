@@ -1,0 +1,134 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: market
+---
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
+  name: mongo
+  namespace: market
+  labels:
+    app: mongo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: mongo
+      labels:
+        app: mongo
+    spec:
+      containers:
+      - image: "mongo:6"
+        name: mongo-0
+        ports:
+        - containerPort: 27017
+          protocol: TCP
+        volumeMounts:
+        - mountPath: "/data/db"
+          name: mongo-pvc-volume
+      volumes:
+      - name: mongo-pvc-volume
+        persistentVolumeClaim:
+          claimName: mongo-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: market
+  labels:
+    app: mongo
+spec:
+  selector:
+    app: mongo
+  ports:
+  - port: 27017
+    targetPort: 27017
+    protocol: TCP
+---
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
+  name: market
+  namespace: market
+  labels:
+    app: market
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: market
+  template:
+    metadata:
+      name: market
+      labels:
+        app: market
+    spec:
+      containers:
+      - image: "ghcr.io/nicolaschan/market:latest"
+        name: market-0
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: market
+  namespace: market
+  labels:
+    app: market
+spec:
+  selector:
+    app: market
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: market
+  namespace: market
+  annotations:
+    "cert-manager.io/cluster-issuer": letsencrypt-prod
+    "cert-manager.io/private-key-algorithm": ECDSA
+    "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure"
+    "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
+spec:
+  rules:
+  - host: "market.nc99.org"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: market
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - "market.nc99.org"
+    secretName: market-cert
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-pvc
+  namespace: market
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "1G"
+  storageClassName: local-path

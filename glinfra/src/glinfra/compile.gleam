@@ -10,6 +10,7 @@ import glinfra/blueprint/environment.{
 }
 import glinfra/blueprint/image.{type Image}
 import glinfra/blueprint/stack.{type Stack}
+import glinfra/blueprint/storage.{type Storage}
 import glinfra/k8s
 import glinfra/k8s/deployment
 import glinfra/k8s/image_policy
@@ -17,6 +18,7 @@ import glinfra/k8s/image_repository
 import glinfra/k8s/image_update_automation
 import glinfra/k8s/ingress
 import glinfra/k8s/namespace
+import glinfra/k8s/persistent_volume_claim
 import glinfra/k8s/service
 import simplifile
 
@@ -64,10 +66,21 @@ fn stack_to_cymbal(
   let ns = namespace.new(stack.name)
   let docs = [namespace.to_cymbal(ns)]
 
-  list.fold(stack.apps, docs, fn(docs, application) {
-    app_to_cymbal(stack.name, update, providers, application)
-    |> list.append(docs, _)
-  })
+  let docs =
+    list.fold(stack.apps, docs, fn(docs, application) {
+      app_to_cymbal(stack.name, update, providers, application)
+      |> list.append(docs, _)
+    })
+
+  let docs =
+    list.append(
+      docs,
+      list.map(stack.storage, fn(s) {
+        storage_to_pvc(stack.name, s) |> persistent_volume_claim.to_cymbal
+      }),
+    )
+
+  docs
 }
 
 fn app_to_cymbal(
@@ -109,8 +122,25 @@ fn app_to_deployment(
   application: App,
   labels: List(#(String, String)),
 ) -> deployment.Deployment {
+  let has_storage =
+    list.any(application.containers, fn(c) { !list.is_empty(c.storage) })
+
+  let strategy = case has_storage {
+    True -> Some(deployment.Recreate)
+    False -> None
+  }
+
+  let volumes =
+    list.flat_map(application.containers, fn(c) {
+      list.map(c.storage, fn(s) {
+        let #(_mount_path, storage_ref) = s
+        let pvc_name = storage_ref.name
+        deployment.PvcVolume(name: pvc_name <> "-volume", claim_name: pvc_name)
+      })
+    })
+
   let containers =
-    list.map(application.containers, fn(c) {
+    list.index_map(application.containers, fn(c, i) {
       let image_ref = c.image.name <> ":" <> c.image.tag
       let ports =
         list.map(application.port, fn(p) {
@@ -119,11 +149,21 @@ fn app_to_deployment(
             protocol: Some("TCP"),
           )
         })
+      let volume_mounts =
+        list.map(c.storage, fn(s) {
+          let #(mount_path, storage_ref) = s
+          deployment.VolumeMount(
+            name: storage_ref.name <> "-volume",
+            mount_path: mount_path,
+          )
+        })
+      let name = application.name <> "-" <> int.to_string(i)
       deployment.Container(
-        name: application.name,
+        name: name,
         image: image_ref,
         ports: ports,
         env: [],
+        volume_mounts: volume_mounts,
       )
     })
 
@@ -137,6 +177,7 @@ fn app_to_deployment(
     spec: deployment.DeploymentSpec(
       replicas: 1,
       selector: k8s.LabelSelector(match_labels: labels),
+      strategy: strategy,
       template: deployment.PodTemplateSpec(
         metadata: k8s.ObjectMeta(
           name: application.name,
@@ -145,7 +186,28 @@ fn app_to_deployment(
           annotations: [],
         ),
         containers: containers,
+        volumes: volumes,
       ),
+    ),
+  )
+}
+
+fn storage_to_pvc(
+  ns: String,
+  s: Storage,
+) -> persistent_volume_claim.PersistentVolumeClaim {
+  persistent_volume_claim.PersistentVolumeClaim(
+    metadata: k8s.ObjectMeta(
+      name: s.name,
+      namespace: Some(ns),
+      labels: [],
+      annotations: [],
+    ),
+    spec: persistent_volume_claim.PvcSpec(
+      access_modes: s.access_modes,
+      storage: s.size,
+      storage_class_name: s.storage_class,
+      volume_name: None,
     ),
   )
 }

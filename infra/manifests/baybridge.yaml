@@ -23,8 +23,8 @@ spec:
         app: baybridge
     spec:
       containers:
-      - name: baybridge
-        image: "ghcr.io/nicolaschan/baybridge:master-20296814492"
+      - image: "ghcr.io/nicolaschan/baybridge:master-20296814492"
+        name: baybridge-0
         ports:
         - containerPort: 3000
           protocol: TCP
