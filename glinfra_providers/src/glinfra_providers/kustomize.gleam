@@ -1,13 +1,13 @@
 import cymbal
 import gleam/list
-import glinfra/blueprint/environment.{type Environment, type Provider, Provider}
+import glinfra/blueprint/environment.{type Environment, Provider}
 
-pub fn provider() -> Provider {
-  Provider(
-    service_annotations: fn(_) { [] },
-    ingress_annotations: fn(_) { [] },
-    resources: [#("kustomization", kustomization)],
-  )
+pub fn add(env: Environment) -> Environment {
+  environment.add_provider(env, provider())
+}
+
+fn provider() -> environment.Provider {
+  Provider(resources: [#("kustomization", kustomization)])
 }
 
 fn kustomization(env: Environment) -> List(cymbal.Yaml) {

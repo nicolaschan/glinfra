@@ -1,6 +1,7 @@
-import glinfra/blueprint/environment.{UpdateConfig}
+import glinfra/blueprint/environment
 import glinfra/compile
 import glinfra/compiler/stack
+import glinfra_providers/flux_image_update.{FluxImageUpdateConfig}
 import glinfra_providers/kustomize
 import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
@@ -12,8 +13,14 @@ import infra/middleware/hsts
 import infra/middleware/https_redirect
 
 pub fn main() -> Nil {
-  let update_config =
-    UpdateConfig(
+  let traefik_config =
+    TraefikConfig(entrypoints: ["web", "websecure"], middlewares: [
+      hsts.middleware(),
+      https_redirect.middleware(),
+    ])
+
+  let flux_config =
+    FluxImageUpdateConfig(
       git_repo: "nicolaschan-infra",
       git_repo_namespace: "default",
       branch: "master",
@@ -22,22 +29,19 @@ pub fn main() -> Nil {
       path_prefix: "./apps/monad",
     )
 
-  let traefik_provider =
-    traefik.provider(
-      TraefikConfig(entrypoints: ["web", "websecure"], middlewares: [
-        hsts.middleware(),
-        https_redirect.middleware(),
-      ]),
-    )
+  let sc =
+    stack.compiler([
+      letsencrypt.stack_plugin(),
+      traefik.stack_plugin(traefik_config),
+      flux_image_update.stack_plugin(flux_config),
+    ])
 
   environment.new("monad")
-  |> environment.with_update(update_config)
-  |> environment.add_provider(traefik_provider)
-  |> environment.add_provider(letsencrypt.provider())
-  |> environment.add_provider(kustomize.provider())
-  |> stack.add(baybridge.stack())
-  |> stack.add(x3dtictactoe.stack())
-  |> stack.add(market.stack())
-  |> stack.add(mines.stack())
+  |> traefik.add(traefik_config)
+  |> kustomize.add()
+  |> stack.add(baybridge.stack(), sc)
+  |> stack.add(x3dtictactoe.stack(), sc)
+  |> stack.add(market.stack(), sc)
+  |> stack.add(mines.stack(), sc)
   |> compile.manifest("manifests")
 }

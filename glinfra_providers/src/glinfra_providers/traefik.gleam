@@ -3,19 +3,27 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import glinfra/blueprint/app.{type App}
-import glinfra/blueprint/environment.{type Environment, type Provider, Provider}
+import glinfra/blueprint/environment.{type Environment, Provider}
+import glinfra/compiler/stack.{StackPlugin}
 import glinfra_providers/traefik/middleware.{type Middleware}
 
 pub type TraefikConfig {
   TraefikConfig(entrypoints: List(String), middlewares: List(Middleware))
 }
 
-pub fn provider(config: TraefikConfig) -> Provider {
-  Provider(
+pub fn stack_plugin(config: TraefikConfig) -> stack.StackPlugin {
+  StackPlugin(
     service_annotations: service_annotations,
     ingress_annotations: ingress_annotations(config, _),
-    resources: resources(config),
+    extra_resources: fn(_, _) { [] },
   )
+}
+
+pub fn add(env: Environment, config: TraefikConfig) -> Environment {
+  case resources(config) {
+    [] -> env
+    res -> environment.add_provider(env, Provider(resources: res))
+  }
 }
 
 fn resources(

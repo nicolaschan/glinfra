@@ -1,11 +1,11 @@
 import glinfra/blueprint/app.{type App}
-import glinfra/blueprint/environment.{type Provider, Provider}
+import glinfra/compiler/stack.{StackPlugin}
 
-pub fn provider() -> Provider {
-  Provider(
+pub fn stack_plugin() -> stack.StackPlugin {
+  StackPlugin(
     service_annotations: fn(_) { [] },
     ingress_annotations: ingress_annotations,
-    resources: [],
+    extra_resources: fn(_, _) { [] },
   )
 }
 

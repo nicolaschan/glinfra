@@ -2,43 +2,54 @@ import cymbal
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/string
 import glinfra/blueprint/app.{type App}
-import glinfra/blueprint/environment.{
-  type Environment, type Provider, type UpdateConfig, Provider,
-}
-import glinfra/blueprint/image.{type Image}
+import glinfra/blueprint/environment.{type Environment, Provider}
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage.{type Storage}
 import glinfra/k8s
 import glinfra/k8s/deployment
-import glinfra/k8s/image_policy
-import glinfra/k8s/image_repository
-import glinfra/k8s/image_update_automation
 import glinfra/k8s/ingress
 import glinfra/k8s/namespace
 import glinfra/k8s/persistent_volume_claim
 import glinfra/k8s/service
 
-pub fn to_provider(stack: Stack) -> Provider {
-  Provider(
-    service_annotations: fn(_) { [] },
-    ingress_annotations: fn(_) { [] },
-    resources: [#(stack.name, fn(env) { stack_to_cymbal(stack, env) })],
+pub type StackPlugin {
+  StackPlugin(
+    service_annotations: fn(App) -> List(#(String, String)),
+    ingress_annotations: fn(App) -> List(#(String, String)),
+    extra_resources: fn(String, App) -> List(cymbal.Yaml),
   )
 }
 
-pub fn add(env: Environment, stack: Stack) -> Environment {
-  environment.add_provider(env, to_provider(stack))
+pub type StackCompiler {
+  StackCompiler(plugins: List(StackPlugin))
 }
 
-fn stack_to_cymbal(stack: Stack, env: Environment) -> List(cymbal.Yaml) {
+pub fn compiler(plugins: List(StackPlugin)) -> StackCompiler {
+  StackCompiler(plugins: plugins)
+}
+
+pub fn to_provider(sc: StackCompiler, stack: Stack) -> environment.Provider {
+  let plugins = sc.plugins
+  Provider(resources: [
+    #(stack.name, fn(_env) { stack_to_cymbal(stack, plugins) }),
+  ])
+}
+
+pub fn add(env: Environment, stack: Stack, sc: StackCompiler) -> Environment {
+  environment.add_provider(env, to_provider(sc, stack))
+}
+
+fn stack_to_cymbal(
+  stack: Stack,
+  plugins: List(StackPlugin),
+) -> List(cymbal.Yaml) {
   let ns = namespace.new(stack.name)
   let docs = [namespace.to_cymbal(ns)]
 
   let docs =
     list.fold(stack.apps, docs, fn(docs, application) {
-      app_to_cymbal(stack.name, env.update, env.providers, application)
+      app_to_cymbal(stack.name, plugins, application)
       |> list.append(docs, _)
     })
 
@@ -55,16 +66,15 @@ fn stack_to_cymbal(stack: Stack, env: Environment) -> List(cymbal.Yaml) {
 
 fn app_to_cymbal(
   ns: String,
-  update: Option(UpdateConfig),
-  providers: List(Provider),
+  plugins: List(StackPlugin),
   application: App,
 ) -> List(cymbal.Yaml) {
   let labels = [#("app", application.name)]
 
   let service_annotations =
-    list.flat_map(providers, fn(p) { p.service_annotations(application) })
+    list.flat_map(plugins, fn(p) { p.service_annotations(application) })
   let ingress_annotations =
-    list.flat_map(providers, fn(p) { p.ingress_annotations(application) })
+    list.flat_map(plugins, fn(p) { p.ingress_annotations(application) })
 
   let docs = [
     app_to_deployment(ns, application, labels)
@@ -78,11 +88,10 @@ fn app_to_cymbal(
     None -> docs
   }
 
-  let docs = case update {
-    Some(config) ->
-      list.append(docs, app_to_image_update_cymbal(ns, application, config))
-    None -> docs
-  }
+  let docs =
+    list.fold(plugins, docs, fn(docs, plugin) {
+      list.append(docs, plugin.extra_resources(ns, application))
+    })
 
   docs
 }
@@ -258,106 +267,4 @@ fn app_to_ingress(
         ]),
       ))
   }
-}
-
-fn app_to_image_update_cymbal(
-  ns: String,
-  application: App,
-  config: UpdateConfig,
-) -> List(cymbal.Yaml) {
-  application.containers
-  |> list.filter_map(fn(c) {
-    case c.image.update {
-      Some(_) -> Ok(c.image)
-      None -> Error(Nil)
-    }
-  })
-  |> list.flat_map(fn(image) {
-    image_to_update_cymbal(ns, application.name, image, config)
-  })
-}
-
-fn image_to_update_cymbal(
-  ns: String,
-  app_name: String,
-  image: Image,
-  config: UpdateConfig,
-) -> List(cymbal.Yaml) {
-  let assert Some(update) = image.update
-  let slug = image_name_to_slug(image.name)
-  let repo_name = slug <> "-repo"
-  let policy_name = slug
-  let automation_name = slug <> "-update"
-  let update_path = config.path_prefix <> "/" <> app_name
-
-  let repo =
-    image_repository.ImageRepository(
-      metadata: k8s.ObjectMeta(
-        name: repo_name,
-        namespace: Some(ns),
-        labels: [],
-        annotations: [],
-      ),
-      spec: image_repository.ImageRepositorySpec(
-        image: image.name,
-        interval: "5m",
-        secret_ref: None,
-      ),
-    )
-
-  let policy =
-    image_policy.ImagePolicy(
-      metadata: k8s.ObjectMeta(
-        name: policy_name,
-        namespace: Some(ns),
-        labels: [],
-        annotations: [],
-      ),
-      spec: image_policy.ImagePolicySpec(
-        image_repository_ref: repo_name,
-        filter_tags: Some(image_policy.FilterTags(pattern: update.pattern)),
-        policy: image_policy.Alphabetical(order: "asc"),
-      ),
-    )
-
-  let automation =
-    image_update_automation.ImageUpdateAutomation(
-      metadata: k8s.ObjectMeta(
-        name: automation_name,
-        namespace: Some(ns),
-        labels: [],
-        annotations: [],
-      ),
-      spec: image_update_automation.ImageUpdateAutomationSpec(
-        interval: "5m",
-        source_ref: image_update_automation.SourceRef(
-          kind: "GitRepository",
-          name: config.git_repo,
-          namespace: Some(config.git_repo_namespace),
-        ),
-        git: image_update_automation.GitSpec(
-          commit: image_update_automation.GitCommit(
-            author: image_update_automation.GitAuthor(
-              name: config.author_name,
-              email: config.author_email,
-            ),
-            message_template: "chore: update " <> app_name <> " image",
-          ),
-          push: image_update_automation.GitPush(branch: config.branch),
-        ),
-        update: image_update_automation.UpdateSpec(path: update_path),
-      ),
-    )
-
-  [
-    image_repository.to_cymbal(repo),
-    image_policy.to_cymbal(policy),
-    image_update_automation.to_cymbal(automation),
-  ]
-}
-
-fn image_name_to_slug(name: String) -> String {
-  name
-  |> string.replace("/", "-")
-  |> string.replace(".", "-")
 }
