@@ -1,5 +1,6 @@
 import glinfra/blueprint/environment.{UpdateConfig}
 import glinfra/compile
+import glinfra/compiler/stack
 import glinfra_providers/kustomize
 import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
@@ -34,9 +35,9 @@ pub fn main() -> Nil {
   |> environment.add_provider(traefik_provider)
   |> environment.add_provider(letsencrypt.provider())
   |> environment.add_provider(kustomize.provider())
-  |> environment.add_stack(baybridge.stack())
-  |> environment.add_stack(x3dtictactoe.stack())
-  |> environment.add_stack(market.stack())
-  |> environment.add_stack(mines.stack())
+  |> stack.add(baybridge.stack())
+  |> stack.add(x3dtictactoe.stack())
+  |> stack.add(market.stack())
+  |> stack.add(mines.stack())
   |> compile.manifest("manifests")
 }

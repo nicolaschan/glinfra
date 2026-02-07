@@ -11,15 +11,11 @@ pub fn provider() -> Provider {
 }
 
 fn kustomization(env: Environment) -> List(cymbal.Yaml) {
-  let stack_names = list.map(env.stacks, fn(s) { s.name <> ".yaml" })
-
-  let provider_names =
+  let all_resources =
     list.flat_map(env.providers, fn(p) {
       list.map(p.resources, fn(entry) { entry.0 <> ".yaml" })
     })
     |> list.filter(fn(name) { name != "kustomization.yaml" })
-
-  let all_resources = list.append(stack_names, provider_names)
 
   [
     cymbal.block([

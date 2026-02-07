@@ -1,12 +1,10 @@
 import cymbal
 import gleam/option.{type Option, None, Some}
 import glinfra/blueprint/app.{type App}
-import glinfra/blueprint/stack.{type Stack}
 
 pub type Environment {
   Environment(
     name: String,
-    stacks: List(Stack),
     update: Option(UpdateConfig),
     providers: List(Provider),
   )
@@ -32,11 +30,7 @@ pub type UpdateConfig {
 }
 
 pub fn new(name: String) -> Environment {
-  Environment(name: name, stacks: [], update: None, providers: [])
-}
-
-pub fn add_stack(env: Environment, stack: Stack) -> Environment {
-  Environment(..env, stacks: [stack, ..env.stacks])
+  Environment(name: name, update: None, providers: [])
 }
 
 pub fn with_update(env: Environment, config: UpdateConfig) -> Environment {
