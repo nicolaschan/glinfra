@@ -18,6 +18,7 @@ pub type MiddlewareSpec {
   StripPrefix(prefixes: List(String))
   RateLimit(average: Int, burst: Int)
   BasicAuth(secret: String, realm: Option(String))
+  IpWhiteList(source_range: List(String))
 }
 
 pub fn to_cymbal(m: Middleware) -> cymbal.Yaml {
@@ -49,6 +50,10 @@ fn spec_to_cymbal(spec: MiddlewareSpec) -> cymbal.Yaml {
       cymbal.block([#("rateLimit", rate_limit_to_cymbal(average, burst))])
     BasicAuth(secret, realm) ->
       cymbal.block([#("basicAuth", basic_auth_to_cymbal(secret, realm))])
+    IpWhiteList(source_range) ->
+      cymbal.block([
+        #("ipWhiteList", ip_white_list_to_cymbal(source_range)),
+      ])
   }
 }
 
@@ -99,4 +104,10 @@ fn basic_auth_to_cymbal(secret: String, realm: Option(String)) -> cymbal.Yaml {
     None -> fields
   }
   cymbal.block(fields)
+}
+
+fn ip_white_list_to_cymbal(source_range: List(String)) -> cymbal.Yaml {
+  cymbal.block([
+    #("sourceRange", cymbal.array(list.map(source_range, cymbal.string))),
+  ])
 }

@@ -18,3 +18,14 @@ spec:
   redirectScheme:
     scheme: https
     permanent: true
+---
+apiVersion: "traefik.io/v1alpha1"
+kind: Middleware
+metadata:
+  name: local-ipwhitelist
+  namespace: default
+spec:
+  ipWhiteList:
+    sourceRange:
+    - "172.30.0.0/16"
+    - "172.26.0.0/16"

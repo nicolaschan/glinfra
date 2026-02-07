@@ -8,7 +8,21 @@ import glinfra/compiler/stack.{StackPlugin}
 import glinfra_providers/traefik/middleware.{type Middleware}
 
 pub type TraefikConfig {
-  TraefikConfig(entrypoints: List(String), middlewares: List(Middleware))
+  TraefikConfig(
+    entrypoints: List(String),
+    global_middlewares: List(Middleware),
+    extra_middlewares: List(Middleware),
+  )
+}
+
+/// Convert a Traefik Middleware into an IngressMiddleware reference
+/// that can be attached to a specific app's ingress.
+pub fn ingress_middleware(mw: Middleware) -> app.IngressMiddleware {
+  let ns = case mw.metadata.namespace {
+    Some(namespace) -> namespace
+    None -> "default"
+  }
+  app.IngressMiddleware(namespace: ns, name: mw.metadata.name)
 }
 
 pub fn stack_plugin(config: TraefikConfig) -> stack.StackPlugin {
@@ -29,7 +43,9 @@ pub fn add(env: Environment, config: TraefikConfig) -> Environment {
 fn resources(
   config: TraefikConfig,
 ) -> List(#(String, fn(Environment) -> List(cymbal.Yaml))) {
-  case config.middlewares {
+  let all_middlewares =
+    list.append(config.global_middlewares, config.extra_middlewares)
+  case all_middlewares {
     [] -> []
     mws -> [
       #("traefik-middlewares", fn(_env) { list.map(mws, middleware.to_cymbal) }),
@@ -48,7 +64,7 @@ fn service_annotations(application: App) -> List(#(String, String)) {
 
 fn ingress_annotations(
   config: TraefikConfig,
-  _application: App,
+  application: App,
 ) -> List(#(String, String)) {
   let annotations = case config.entrypoints {
     [] -> []
@@ -60,13 +76,27 @@ fn ingress_annotations(
     ]
   }
 
-  let annotations = case config.middlewares {
+  // Collect per-app middlewares from ingress definitions
+  let per_app_refs =
+    list.flat_map(application.port, fn(p) {
+      list.flat_map(p.ingress, fn(ing) {
+        list.map(ing.middlewares, ingress_middleware_ref)
+      })
+    })
+
+  let all_refs =
+    list.append(
+      list.map(config.global_middlewares, middleware_ref),
+      per_app_refs,
+    )
+
+  let annotations = case all_refs {
     [] -> annotations
-    mws ->
+    refs ->
       list.append(annotations, [
         #(
           "traefik.ingress.kubernetes.io/router.middlewares",
-          string.join(list.map(mws, middleware_ref), ","),
+          string.join(refs, ","),
         ),
       ])
   }
@@ -82,4 +112,10 @@ fn middleware_ref(mw: Middleware) -> String {
     None -> "default"
   }
   ns <> "-" <> mw.metadata.name <> "@kubernetescrd"
+}
+
+/// Derives the Traefik middleware annotation reference from an IngressMiddleware.
+/// Format: <namespace>-<name>@kubernetescrd
+fn ingress_middleware_ref(mw: app.IngressMiddleware) -> String {
+  mw.namespace <> "-" <> mw.name <> "@kubernetescrd"
 }

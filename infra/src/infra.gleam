@@ -8,16 +8,24 @@ import glinfra_providers/traefik.{TraefikConfig}
 import infra/apps/baybridge
 import infra/apps/market
 import infra/apps/mines
+import infra/apps/ollama
 import infra/apps/x3dtictactoe
 import infra/middleware/hsts
 import infra/middleware/https_redirect
+import infra/middleware/local_ipwhitelist
 
 pub fn main() -> Nil {
   let traefik_config =
-    TraefikConfig(entrypoints: ["web", "websecure"], middlewares: [
-      hsts.middleware(),
-      https_redirect.middleware(),
-    ])
+    TraefikConfig(
+      entrypoints: ["web", "websecure"],
+      global_middlewares: [
+        hsts.middleware(),
+        https_redirect.middleware(),
+      ],
+      extra_middlewares: [
+        local_ipwhitelist.middleware(),
+      ],
+    )
 
   let flux_config =
     FluxImageUpdateConfig(
@@ -43,5 +51,6 @@ pub fn main() -> Nil {
   |> stack.add(x3dtictactoe.stack(), sc)
   |> stack.add(market.stack(), sc)
   |> stack.add(mines.stack(), sc)
+  |> stack.add(ollama.stack(), sc)
   |> compile.manifest("manifests")
 }
