@@ -5,7 +5,7 @@ pub fn provider() -> Provider {
   Provider(
     service_annotations: fn(_) { [] },
     ingress_annotations: ingress_annotations,
-    resources: fn() { [] },
+    resources: [],
   )
 }
 

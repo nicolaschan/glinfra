@@ -16,7 +16,7 @@ pub type Provider {
   Provider(
     service_annotations: fn(App) -> List(#(String, String)),
     ingress_annotations: fn(App) -> List(#(String, String)),
-    resources: fn() -> List(#(String, List(cymbal.Yaml))),
+    resources: List(#(String, fn(Environment) -> List(cymbal.Yaml))),
   )
 }
 

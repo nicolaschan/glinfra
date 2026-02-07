@@ -34,6 +34,8 @@ fn write_manifests(
 ) {
   let _ = simplifile.create_directory_all(output_dir)
 
+  let manifests = merge_manifests(manifests)
+
   list.each(manifests, fn(entry) {
     let #(name, yaml) = entry
     let yaml = list.map(yaml, cymbal.encode) |> string.join("")
@@ -46,6 +48,18 @@ fn write_manifests(
   })
 }
 
+fn merge_manifests(
+  manifests: List(#(String, List(cymbal.Yaml))),
+) -> List(#(String, List(cymbal.Yaml))) {
+  list.fold(manifests, [], fn(acc, entry) {
+    let #(name, yamls) = entry
+    case list.key_find(acc, name) {
+      Ok(existing) -> list.key_set(acc, name, list.append(existing, yamls))
+      Error(_) -> list.append(acc, [entry])
+    }
+  })
+}
+
 fn env_to_cymbal(env: Environment) -> List(#(String, List(cymbal.Yaml))) {
   let stack_manifests =
     list.map(env.stacks, fn(stack) {
@@ -53,7 +67,13 @@ fn env_to_cymbal(env: Environment) -> List(#(String, List(cymbal.Yaml))) {
       #(stack.name, yamls)
     })
 
-  let provider_resources = list.flat_map(env.providers, fn(p) { p.resources() })
+  let provider_resources =
+    list.flat_map(env.providers, fn(p) {
+      list.map(p.resources, fn(entry) {
+        let #(name, generate) = entry
+        #(name, generate(env))
+      })
+    })
 
   list.append(stack_manifests, provider_resources)
 }

@@ -3,7 +3,7 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import glinfra/blueprint/app.{type App}
-import glinfra/blueprint/environment.{type Provider, Provider}
+import glinfra/blueprint/environment.{type Environment, type Provider, Provider}
 import glinfra_providers/traefik/middleware.{type Middleware}
 
 pub type TraefikConfig {
@@ -20,14 +20,12 @@ pub fn provider(config: TraefikConfig) -> Provider {
 
 fn resources(
   config: TraefikConfig,
-) -> fn() -> List(#(String, List(cymbal.Yaml))) {
-  fn() {
-    case config.middlewares {
-      [] -> []
-      mws -> [
-        #("traefik-middlewares", list.map(mws, middleware.to_cymbal)),
-      ]
-    }
+) -> List(#(String, fn(Environment) -> List(cymbal.Yaml))) {
+  case config.middlewares {
+    [] -> []
+    mws -> [
+      #("traefik-middlewares", fn(_env) { list.map(mws, middleware.to_cymbal) }),
+    ]
   }
 }
 
