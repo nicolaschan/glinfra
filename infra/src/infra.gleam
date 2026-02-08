@@ -1,4 +1,3 @@
-import gleam/list
 import glinfra/blueprint/environment
 import glinfra/compile
 import glinfra/compiler/stack
@@ -38,18 +37,20 @@ pub fn main() -> Nil {
       path_prefix: "./apps/monad",
     )
 
-  let sc =
-    letsencrypt.plugins()
-    |> list.append(traefik.plugins(traefik_config))
-    |> list.append(flux_image_update.plugins(flux_config))
+  let stacks =
+    stack.stacks()
+    |> stack.plugins(letsencrypt.plugins())
+    |> stack.plugins(traefik.plugins(traefik_config))
+    |> stack.plugins(flux_image_update.plugins(flux_config))
+    |> stack.add(baybridge.stack())
+    |> stack.add(x3dtictactoe.stack())
+    |> stack.add(market.stack())
+    |> stack.add(mines.stack())
+    |> stack.add(ollama.stack())
 
   environment.new("monad")
   |> traefik.add(traefik_config)
   |> kustomize.add()
-  |> stack.add(baybridge.stack(), sc)
-  |> stack.add(x3dtictactoe.stack(), sc)
-  |> stack.add(market.stack(), sc)
-  |> stack.add(mines.stack(), sc)
-  |> stack.add(ollama.stack(), sc)
+  |> stack.add_all(stacks)
   |> compile.manifest("manifests")
 }

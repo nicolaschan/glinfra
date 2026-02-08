@@ -13,21 +13,30 @@ import glinfra/k8s/namespace
 import glinfra/k8s/persistent_volume_claim
 import glinfra/k8s/service
 
-pub fn to_provider(
-  global_plugins: List(app.AppPlugin),
-  stack: Stack,
-) -> environment.Provider {
-  Provider(resources: [
-    #(stack.name, fn(_env) { stack_to_cymbal(stack, global_plugins) }),
-  ])
+pub type Stacks {
+  Stacks(plugins: List(app.AppPlugin), stacks: List(Stack))
 }
 
-pub fn add(
-  env: Environment,
-  stack: Stack,
-  global_plugins: List(app.AppPlugin),
-) -> Environment {
-  environment.add_provider(env, to_provider(global_plugins, stack))
+pub fn stacks() -> Stacks {
+  Stacks(plugins: [], stacks: [])
+}
+
+pub fn plugins(s: Stacks, p: List(app.AppPlugin)) -> Stacks {
+  Stacks(..s, plugins: list.append(s.plugins, p))
+}
+
+pub fn add(s: Stacks, stack: Stack) -> Stacks {
+  Stacks(..s, stacks: [stack, ..s.stacks])
+}
+
+pub fn add_all(env: Environment, s: Stacks) -> Environment {
+  list.fold(list.reverse(s.stacks), env, fn(env, stack) {
+    let provider =
+      Provider(resources: [
+        #(stack.name, fn(_env) { stack_to_cymbal(stack, s.plugins) }),
+      ])
+    environment.add_provider(env, provider)
+  })
 }
 
 fn stack_to_cymbal(
