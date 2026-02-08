@@ -13,43 +13,33 @@ import glinfra/k8s/namespace
 import glinfra/k8s/persistent_volume_claim
 import glinfra/k8s/service
 
-pub type StackPlugin {
-  StackPlugin(
-    service_annotations: fn(App) -> List(#(String, String)),
-    ingress_annotations: fn(App) -> List(#(String, String)),
-    extra_resources: fn(String, App) -> List(cymbal.Yaml),
-  )
-}
-
-pub type StackCompiler {
-  StackCompiler(plugins: List(StackPlugin))
-}
-
-pub fn compiler(plugins: List(StackPlugin)) -> StackCompiler {
-  StackCompiler(plugins: plugins)
-}
-
-pub fn to_provider(sc: StackCompiler, stack: Stack) -> environment.Provider {
-  let plugins = sc.plugins
+pub fn to_provider(
+  global_plugins: List(app.AppPlugin),
+  stack: Stack,
+) -> environment.Provider {
   Provider(resources: [
-    #(stack.name, fn(_env) { stack_to_cymbal(stack, plugins) }),
+    #(stack.name, fn(_env) { stack_to_cymbal(stack, global_plugins) }),
   ])
 }
 
-pub fn add(env: Environment, stack: Stack, sc: StackCompiler) -> Environment {
-  environment.add_provider(env, to_provider(sc, stack))
+pub fn add(
+  env: Environment,
+  stack: Stack,
+  global_plugins: List(app.AppPlugin),
+) -> Environment {
+  environment.add_provider(env, to_provider(global_plugins, stack))
 }
 
 fn stack_to_cymbal(
   stack: Stack,
-  plugins: List(StackPlugin),
+  global_plugins: List(app.AppPlugin),
 ) -> List(cymbal.Yaml) {
   let ns = namespace.new(stack.name)
   let docs = [namespace.to_cymbal(ns)]
 
   let docs =
     list.fold(stack.apps, docs, fn(docs, application) {
-      app_to_cymbal(stack.name, plugins, application)
+      app_to_cymbal(stack.name, global_plugins, application)
       |> list.append(docs, _)
     })
 
@@ -66,62 +56,86 @@ fn stack_to_cymbal(
 
 fn app_to_cymbal(
   ns: String,
-  plugins: List(StackPlugin),
+  global_plugins: List(app.AppPlugin),
   application: App,
 ) -> List(cymbal.Yaml) {
   let labels = [#("app", application.name)]
-
-  let service_annotations =
-    list.flat_map(plugins, fn(p) { p.service_annotations(application) })
-  let ingress_annotations =
-    list.flat_map(plugins, fn(p) { p.ingress_annotations(application) })
+  let all_plugins = list.append(global_plugins, application.plugins)
 
   let docs = [
     app_to_deployment(ns, application, labels)
-      |> apply_deployment_plugins(application.plugins)
+      |> apply_deployment_plugins(application, all_plugins)
       |> deployment.to_cymbal,
-    app_to_service(ns, application, labels, service_annotations)
+    app_to_service(ns, application, labels)
+      |> apply_service_plugins(application, all_plugins)
       |> service.to_cymbal,
   ]
 
-  let docs = case app_to_ingress(ns, application, labels, ingress_annotations) {
+  let docs = case app_to_ingress(ns, application, labels) {
     Some(ing) ->
       list.append(docs, [
         ing
-        |> apply_ingress_plugins(application.plugins)
+        |> apply_ingress_plugins(application, all_plugins)
         |> ingress.to_cymbal,
       ])
     None -> docs
   }
 
-  let docs =
-    list.fold(plugins, docs, fn(docs, plugin) {
-      list.append(docs, plugin.extra_resources(ns, application))
-    })
+  let docs = apply_extra_resources(docs, ns, application, all_plugins)
 
   docs
 }
 
 fn apply_deployment_plugins(
   dep: deployment.Deployment,
+  application: App,
   plugins: List(app.AppPlugin),
 ) -> deployment.Deployment {
   list.fold(plugins, dep, fn(d, plugin) {
     case plugin {
-      app.DeploymentPlugin(modify) -> modify(d)
-      app.IngressPlugin(_) -> d
+      app.DeploymentPlugin(modify) -> modify(application, d)
+      _ -> d
     }
   })
 }
 
 fn apply_ingress_plugins(
   ing: ingress.Ingress,
+  application: App,
   plugins: List(app.AppPlugin),
 ) -> ingress.Ingress {
   list.fold(plugins, ing, fn(i, plugin) {
     case plugin {
-      app.IngressPlugin(modify) -> modify(i)
-      app.DeploymentPlugin(_) -> i
+      app.IngressPlugin(modify) -> modify(application, i)
+      _ -> i
+    }
+  })
+}
+
+fn apply_service_plugins(
+  svc: service.Service,
+  application: App,
+  plugins: List(app.AppPlugin),
+) -> service.Service {
+  list.fold(plugins, svc, fn(s, plugin) {
+    case plugin {
+      app.ServicePlugin(modify) -> modify(application, s)
+      _ -> s
+    }
+  })
+}
+
+fn apply_extra_resources(
+  docs: List(cymbal.Yaml),
+  ns: String,
+  application: App,
+  plugins: List(app.AppPlugin),
+) -> List(cymbal.Yaml) {
+  list.fold(plugins, docs, fn(docs, plugin) {
+    case plugin {
+      app.ExtraResources(generate) ->
+        list.append(docs, generate(ns, application))
+      _ -> docs
     }
   })
 }
@@ -227,7 +241,6 @@ fn app_to_service(
   ns: String,
   application: App,
   labels: List(#(String, String)),
-  annotations: List(#(String, String)),
 ) -> service.Service {
   let ports =
     list.index_map(application.port, fn(p, i) {
@@ -248,7 +261,7 @@ fn app_to_service(
       name: application.name,
       namespace: Some(ns),
       labels: labels,
-      annotations: annotations,
+      annotations: [],
     ),
     spec: service.ServiceSpec(selector: labels, ports: ports),
   )
@@ -258,7 +271,6 @@ fn app_to_ingress(
   ns: String,
   application: App,
   _labels: List(#(String, String)),
-  annotations: List(#(String, String)),
 ) -> Option(ingress.Ingress) {
   let rules =
     list.flat_map(application.port, fn(p) {
@@ -289,7 +301,7 @@ fn app_to_ingress(
           name: application.name,
           namespace: Some(ns),
           labels: [],
-          annotations: annotations,
+          annotations: [],
         ),
         spec: ingress.IngressSpec(ingress_class_name: None, rules: rules, tls: [
           ingress.IngressTls(

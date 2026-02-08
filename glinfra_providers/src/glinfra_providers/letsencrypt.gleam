@@ -1,17 +1,25 @@
-import glinfra/blueprint/app.{type App}
-import glinfra/compiler/stack.{StackPlugin}
+import gleam/list
+import glinfra/blueprint/app
+import glinfra/k8s
+import glinfra/k8s/ingress
 
-pub fn stack_plugin() -> stack.StackPlugin {
-  StackPlugin(
-    service_annotations: fn(_) { [] },
-    ingress_annotations: ingress_annotations,
-    extra_resources: fn(_, _) { [] },
-  )
+pub fn plugins() -> List(app.AppPlugin) {
+  [ingress_plugin()]
 }
 
-fn ingress_annotations(_application: App) -> List(#(String, String)) {
-  [
+fn ingress_plugin() -> app.AppPlugin {
+  let annotations = [
     #("cert-manager.io/cluster-issuer", "letsencrypt-prod"),
     #("cert-manager.io/private-key-algorithm", "ECDSA"),
   ]
+
+  app.IngressPlugin(modify: fn(_app, ing) {
+    ingress.Ingress(
+      ..ing,
+      metadata: k8s.ObjectMeta(
+        ..ing.metadata,
+        annotations: list.append(ing.metadata.annotations, annotations),
+      ),
+    )
+  })
 }

@@ -1,6 +1,8 @@
+import cymbal
 import glinfra/blueprint/container.{type Container}
 import glinfra/k8s/deployment
 import glinfra/k8s/ingress
+import glinfra/k8s/service
 
 pub type App {
   App(
@@ -51,8 +53,12 @@ pub type Ingress {
 }
 
 pub type AppPlugin {
-  DeploymentPlugin(modify: fn(deployment.Deployment) -> deployment.Deployment)
-  IngressPlugin(modify: fn(ingress.Ingress) -> ingress.Ingress)
+  DeploymentPlugin(
+    modify: fn(App, deployment.Deployment) -> deployment.Deployment,
+  )
+  IngressPlugin(modify: fn(App, ingress.Ingress) -> ingress.Ingress)
+  ServicePlugin(modify: fn(App, service.Service) -> service.Service)
+  ExtraResources(generate: fn(String, App) -> List(cymbal.Yaml))
 }
 
 pub fn add_plugin(app: App, plugin: AppPlugin) -> App {

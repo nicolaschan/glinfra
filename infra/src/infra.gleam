@@ -1,3 +1,4 @@
+import gleam/list
 import glinfra/blueprint/environment
 import glinfra/compile
 import glinfra/compiler/stack
@@ -38,11 +39,9 @@ pub fn main() -> Nil {
     )
 
   let sc =
-    stack.compiler([
-      letsencrypt.stack_plugin(),
-      traefik.stack_plugin(traefik_config),
-      flux_image_update.stack_plugin(flux_config),
-    ])
+    letsencrypt.plugins()
+    |> list.append(traefik.plugins(traefik_config))
+    |> list.append(flux_image_update.plugins(flux_config))
 
   environment.new("monad")
   |> traefik.add(traefik_config)

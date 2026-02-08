@@ -4,7 +4,6 @@ import gleam/option.{None, Some}
 import gleam/string
 import glinfra/blueprint/app.{type App}
 import glinfra/blueprint/image.{type Image}
-import glinfra/compiler/stack.{StackPlugin}
 import glinfra/k8s
 import glinfra/k8s/image_policy
 import glinfra/k8s/image_repository
@@ -21,14 +20,12 @@ pub type FluxImageUpdateConfig {
   )
 }
 
-pub fn stack_plugin(config: FluxImageUpdateConfig) -> stack.StackPlugin {
-  StackPlugin(
-    service_annotations: fn(_) { [] },
-    ingress_annotations: fn(_) { [] },
-    extra_resources: fn(ns, application) {
+pub fn plugins(config: FluxImageUpdateConfig) -> List(app.AppPlugin) {
+  [
+    app.ExtraResources(generate: fn(ns, application) {
       app_to_image_update_cymbal(ns, application, config)
-    },
-  )
+    }),
+  ]
 }
 
 fn app_to_image_update_cymbal(

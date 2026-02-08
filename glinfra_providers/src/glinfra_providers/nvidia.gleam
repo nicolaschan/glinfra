@@ -4,7 +4,7 @@ import glinfra/blueprint/app
 import glinfra/k8s/deployment
 
 pub fn plugin() -> app.AppPlugin {
-  app.DeploymentPlugin(modify: fn(dep) {
+  app.DeploymentPlugin(modify: fn(_application, dep) {
     let spec = dep.spec
     let template = spec.template
 

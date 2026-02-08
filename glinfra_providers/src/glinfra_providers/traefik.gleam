@@ -2,11 +2,11 @@ import cymbal
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import glinfra/blueprint/app.{type App}
+import glinfra/blueprint/app
 import glinfra/blueprint/environment.{type Environment, Provider}
-import glinfra/compiler/stack.{StackPlugin}
 import glinfra/k8s
 import glinfra/k8s/ingress
+import glinfra/k8s/service
 import glinfra_providers/traefik/middleware.{type Middleware}
 
 pub type TraefikConfig {
@@ -21,7 +21,7 @@ pub type TraefikConfig {
 /// the middleware reference to the ingress's router.middlewares annotation.
 pub fn ingress_middleware(mw: Middleware) -> app.AppPlugin {
   let ref = middleware_ref(mw)
-  app.IngressPlugin(modify: fn(ing) {
+  app.IngressPlugin(modify: fn(_app, ing) {
     let middlewares_key = "traefik.ingress.kubernetes.io/router.middlewares"
     let existing =
       list.find(ing.metadata.annotations, fn(a) { a.0 == middlewares_key })
@@ -39,12 +39,8 @@ pub fn ingress_middleware(mw: Middleware) -> app.AppPlugin {
   })
 }
 
-pub fn stack_plugin(config: TraefikConfig) -> stack.StackPlugin {
-  StackPlugin(
-    service_annotations: service_annotations,
-    ingress_annotations: ingress_annotations(config, _),
-    extra_resources: fn(_, _) { [] },
-  )
+pub fn plugins(config: TraefikConfig) -> List(app.AppPlugin) {
+  [service_plugin(), ingress_plugin(config)]
 }
 
 pub fn add(env: Environment, config: TraefikConfig) -> Environment {
@@ -67,20 +63,26 @@ fn resources(
   }
 }
 
-fn service_annotations(application: App) -> List(#(String, String)) {
-  case list.any(application.port, fn(p) { p.h2c }) {
-    True -> [
-      #("traefik.ingress.kubernetes.io/service.serversscheme", "h2c"),
-    ]
-    False -> []
-  }
+fn service_plugin() -> app.AppPlugin {
+  app.ServicePlugin(modify: fn(application, svc) {
+    case list.any(application.port, fn(p) { p.h2c }) {
+      True ->
+        service.Service(
+          ..svc,
+          metadata: k8s.ObjectMeta(
+            ..svc.metadata,
+            annotations: list.append(svc.metadata.annotations, [
+              #("traefik.ingress.kubernetes.io/service.serversscheme", "h2c"),
+            ]),
+          ),
+        )
+      False -> svc
+    }
+  })
 }
 
-fn ingress_annotations(
-  config: TraefikConfig,
-  _application: App,
-) -> List(#(String, String)) {
-  let annotations = case config.entrypoints {
+fn ingress_plugin(config: TraefikConfig) -> app.AppPlugin {
+  let entrypoints_annotation = case config.entrypoints {
     [] -> []
     eps -> [
       #(
@@ -90,20 +92,29 @@ fn ingress_annotations(
     ]
   }
 
-  let all_refs = list.map(config.global_middlewares, middleware_ref)
-
-  let annotations = case all_refs {
-    [] -> annotations
-    refs ->
-      list.append(annotations, [
-        #(
-          "traefik.ingress.kubernetes.io/router.middlewares",
-          string.join(refs, ","),
-        ),
-      ])
+  let middlewares_annotation = case
+    list.map(config.global_middlewares, middleware_ref)
+  {
+    [] -> []
+    refs -> [
+      #(
+        "traefik.ingress.kubernetes.io/router.middlewares",
+        string.join(refs, ","),
+      ),
+    ]
   }
 
-  annotations
+  let annotations = list.append(entrypoints_annotation, middlewares_annotation)
+
+  app.IngressPlugin(modify: fn(_app, ing) {
+    ingress.Ingress(
+      ..ing,
+      metadata: k8s.ObjectMeta(
+        ..ing.metadata,
+        annotations: list.append(ing.metadata.annotations, annotations),
+      ),
+    )
+  })
 }
 
 /// Derives the Traefik middleware annotation reference from a Middleware object.
