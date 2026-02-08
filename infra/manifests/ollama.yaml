@@ -32,7 +32,7 @@ spec:
           protocol: TCP
         volumeMounts:
         - mountPath: "/root/.ollama"
-          name: ollama-data-volume
+          name: ollama-pvc-volume
         resources:
           limits:
             "nvidia.com/gpu-all": "1"
@@ -40,9 +40,9 @@ spec:
             "nvidia.com/gpu-all": "1"
       runtimeClassName: nvidia
       volumes:
-      - name: ollama-data-volume
+      - name: ollama-pvc-volume
         persistentVolumeClaim:
-          claimName: ollama-data
+          claimName: ollama-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -87,11 +87,11 @@ spec:
           protocol: TCP
         volumeMounts:
         - mountPath: "/app/backend/data"
-          name: openwebui-data-volume
+          name: openwebui-pvc-volume
       volumes:
-      - name: openwebui-data-volume
+      - name: openwebui-pvc-volume
         persistentVolumeClaim:
-          claimName: openwebui-data
+          claimName: openwebui-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -138,7 +138,7 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ollama-data
+  name: ollama-pvc
   namespace: ollama
 spec:
   accessModes:
@@ -151,12 +151,12 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: openwebui-data
+  name: openwebui-pvc
   namespace: ollama
 spec:
   accessModes:
   - ReadWriteOnce
   resources:
     requests:
-      storage: "1Gi"
+      storage: "16G"
   storageClassName: local-path

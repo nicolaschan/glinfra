@@ -7,8 +7,8 @@ import glinfra_providers/traefik
 import infra/middleware/local_ipwhitelist
 
 pub fn stack() -> Stack {
-  let openwebui_storage = storage.new("openwebui-data", "1Gi")
-  let ollama_storage = storage.new("ollama-data", "16G")
+  let openwebui_storage = storage.new("openwebui-pvc", "16G")
+  let ollama_storage = storage.new("ollama-pvc", "16G")
 
   let ollama =
     app.new("ollama")
