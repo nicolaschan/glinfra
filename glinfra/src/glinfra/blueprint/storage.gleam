@@ -28,10 +28,18 @@ pub fn with_storage_class(storage: Storage, class: String) -> Storage {
   Storage(..storage, storage_class: option.Some(class))
 }
 
+pub fn with_default_storage_class(storage: Storage) -> Storage {
+  Storage(..storage, storage_class: option.None)
+}
+
 pub fn with_access_modes(storage: Storage, modes: List(String)) -> Storage {
   Storage(..storage, access_modes: modes)
 }
 
 pub fn ref(storage: Storage) -> StorageRef {
   StorageRef(name: storage.name)
+}
+
+pub fn external(name: String) -> StorageRef {
+  StorageRef(name: name)
 }

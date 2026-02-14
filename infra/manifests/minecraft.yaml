@@ -1,0 +1,266 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: minecraft
+---
+apiVersion: "source.toolkit.fluxcd.io/v1"
+kind: HelmRepository
+metadata:
+  name: itzg
+  namespace: minecraft
+spec:
+  interval: "1m"
+  url: "https://itzg.github.io/minecraft-server-charts/"
+---
+apiVersion: "helm.toolkit.fluxcd.io/v2"
+kind: HelmRelease
+metadata:
+  name: minecraft
+  namespace: minecraft
+spec:
+  interval: "5m"
+  chart:
+    spec:
+      chart: minecraft
+      version: "3.4.x"
+      sourceRef:
+        kind: HelmRepository
+        name: itzg
+        namespace: minecraft
+      interval: "1m"
+  values:
+    minecraftServer:
+      type: VANILLA
+      version: "1.21.11"
+      gameMode: survival
+      eula: true
+      difficulty: hard
+      viewDistance: 16
+      pvp: true
+      enableCommandBlock: false
+      memory: "6G"
+      jvmOpts: "-Dlog4j2.formatMsgNoLookups=true"
+      rcon:
+        enabled: true
+        password: cdghkdtcouh8476e6qh22h
+    persistence:
+      dataDir:
+        enabled: true
+---
+apiVersion: "batch/v1"
+kind: CronJob
+metadata:
+  name: minecraft-backup-nicolas-cronjob
+  namespace: minecraft
+spec:
+  concurrencyPolicy: Forbid
+  schedule: "12 * * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 18000
+      template:
+        spec:
+          volumes:
+          - name: minecraft-minecraft-datadir-volume
+            persistentVolumeClaim:
+              claimName: minecraft-minecraft-datadir
+          - name: minecraft-backup-lockfile-pvc-volume
+            persistentVolumeClaim:
+              claimName: minecraft-backup-lockfile-pvc
+          - name: minecraft-backup-secret-volume
+            secret:
+              secretName: minecraft-backup-secret
+              defaultMode: 256
+          containers:
+          - name: backup-container
+            image: "ghcr.io/nicolaschan/minecraft-backup:latest"
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: RESTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minecraft-backup-secret
+                  key: restic_password
+            volumeMounts:
+            - mountPath: "/mnt/server"
+              name: minecraft-minecraft-datadir-volume
+            - mountPath: "/mnt/lockfile"
+              name: minecraft-backup-lockfile-pvc-volume
+            - mountPath: "/root/.ssh"
+              name: minecraft-backup-secret-volume
+              readOnly: true
+            command:
+            - "/code/backup.sh"
+            - -c
+            - -p
+            - nicolas
+            - -i
+            - "/mnt/server"
+            - -r
+            - "sftp://git@monad.zeromap.net/minecraft-restic"
+            - -s
+            - "minecraft-minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
+            - -w
+            - rcon
+            - -t
+            - "/mnt/lockfile/lockfile"
+            - -H
+            - minecraft-backup-cronjob
+          restartPolicy: Never
+---
+apiVersion: "batch/v1"
+kind: CronJob
+metadata:
+  name: minecraft-backup-randall-cronjob
+  namespace: minecraft
+spec:
+  concurrencyPolicy: Forbid
+  schedule: "39 2 * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 18000
+      template:
+        spec:
+          volumes:
+          - name: minecraft-minecraft-datadir-volume
+            persistentVolumeClaim:
+              claimName: minecraft-minecraft-datadir
+          - name: minecraft-backup-lockfile-pvc-volume
+            persistentVolumeClaim:
+              claimName: minecraft-backup-lockfile-pvc
+          - name: minecraft-backup-secret-volume
+            secret:
+              secretName: minecraft-backup-secret
+              defaultMode: 256
+          containers:
+          - name: backup-container
+            image: "ghcr.io/nicolaschan/minecraft-backup:latest"
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: RESTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minecraft-backup-secret
+                  key: restic_password
+            volumeMounts:
+            - mountPath: "/mnt/server"
+              name: minecraft-minecraft-datadir-volume
+            - mountPath: "/mnt/lockfile"
+              name: minecraft-backup-lockfile-pvc-volume
+            - mountPath: "/root/.ssh"
+              name: minecraft-backup-secret-volume
+              readOnly: true
+            command:
+            - "/code/backup.sh"
+            - -c
+            - -p
+            - randall
+            - -i
+            - "/mnt/server"
+            - -r
+            - "sftp://nchan@frontyard.glaceon.org:62222/minecraft-restic"
+            - -s
+            - "minecraft-minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
+            - -w
+            - rcon
+            - -t
+            - "/mnt/lockfile/lockfile"
+            - -H
+            - minecraft-backup-cronjob
+          restartPolicy: Never
+---
+apiVersion: "batch/v1"
+kind: CronJob
+metadata:
+  name: minecraft-backup-francis-cronjob
+  namespace: minecraft
+spec:
+  concurrencyPolicy: Forbid
+  schedule: "21 * * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 18000
+      template:
+        spec:
+          volumes:
+          - name: minecraft-minecraft-datadir-volume
+            persistentVolumeClaim:
+              claimName: minecraft-minecraft-datadir
+          - name: minecraft-backup-lockfile-pvc-volume
+            persistentVolumeClaim:
+              claimName: minecraft-backup-lockfile-pvc
+          - name: minecraft-backup-secret-volume
+            secret:
+              secretName: minecraft-backup-secret
+              defaultMode: 256
+          containers:
+          - name: backup-container
+            image: "ghcr.io/nicolaschan/minecraft-backup:latest"
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: RESTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minecraft-backup-secret
+                  key: restic_password
+            volumeMounts:
+            - mountPath: "/mnt/server"
+              name: minecraft-minecraft-datadir-volume
+            - mountPath: "/mnt/lockfile"
+              name: minecraft-backup-lockfile-pvc-volume
+            - mountPath: "/root/.ssh"
+              name: minecraft-backup-secret-volume
+              readOnly: true
+            command:
+            - "/code/backup.sh"
+            - -c
+            - -p
+            - francis
+            - -i
+            - "/mnt/server"
+            - -r
+            - "sftp://nc99@fnixon-externalsvc.endpoint.glaceon.org:55/harddrive2/backups/minecraft-restic"
+            - -s
+            - "minecraft-minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
+            - -w
+            - rcon
+            - -t
+            - "/mnt/lockfile/lockfile"
+            - -H
+            - minecraft-backup-cronjob
+            - -d
+            - sequential
+            - -m
+            - -1
+          restartPolicy: Never
+---
+apiVersion: "traefik.io/v1alpha1"
+kind: IngressRouteTCP
+metadata:
+  name: minecraft-ingressroutetcp
+  namespace: minecraft
+spec:
+  entryPoints:
+  - minecraft-tcp
+  routes:
+  - match: "HostSNI(`*`)"
+    services:
+    - name: minecraft-minecraft
+      port: 25565
+      weight: 10
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: minecraft-backup-lockfile-pvc
+  namespace: minecraft
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "5G"

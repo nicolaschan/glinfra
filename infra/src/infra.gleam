@@ -7,6 +7,7 @@ import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
 import infra/apps/baybridge
 import infra/apps/market
+import infra/apps/minecraft
 import infra/apps/mines
 import infra/apps/ollama
 import infra/apps/x3dtictactoe
@@ -47,6 +48,7 @@ pub fn main() -> Nil {
     |> stack.add(market.stack())
     |> stack.add(mines.stack())
     |> stack.add(ollama.stack())
+    |> stack.add(minecraft.stack())
 
   environment.new("monad")
   |> traefik.add(traefik_config)

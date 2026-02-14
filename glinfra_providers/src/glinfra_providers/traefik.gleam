@@ -7,6 +7,7 @@ import glinfra/blueprint/environment.{type Environment, Provider}
 import glinfra/k8s
 import glinfra/k8s/ingress
 import glinfra/k8s/service
+import glinfra_providers/traefik/ingress_route_tcp
 import glinfra_providers/traefik/middleware.{type Middleware}
 
 pub type TraefikConfig {
@@ -65,18 +66,25 @@ fn resources(
 
 fn service_plugin() -> app.AppPlugin {
   app.ServicePlugin(modify: fn(application, svc) {
-    case list.any(application.port, fn(p) { p.h2c }) {
-      True ->
-        service.Service(
-          ..svc,
-          metadata: k8s.ObjectMeta(
-            ..svc.metadata,
-            annotations: list.append(svc.metadata.annotations, [
-              #("traefik.ingress.kubernetes.io/service.serversscheme", "h2c"),
-            ]),
-          ),
-        )
-      False -> svc
+    case application {
+      app.App(_name, port, _containers, _plugins) ->
+        case list.any(port, fn(p) { p.h2c }) {
+          True ->
+            service.Service(
+              ..svc,
+              metadata: k8s.ObjectMeta(
+                ..svc.metadata,
+                annotations: list.append(svc.metadata.annotations, [
+                  #(
+                    "traefik.ingress.kubernetes.io/service.serversscheme",
+                    "h2c",
+                  ),
+                ]),
+              ),
+            )
+          False -> svc
+        }
+      app.HelmApp(_, _, _, _) -> svc
     }
   })
 }
@@ -125,4 +133,28 @@ fn middleware_ref(mw: Middleware) -> String {
     None -> "default"
   }
   ns <> "-" <> mw.metadata.name <> "@kubernetescrd"
+}
+
+/// Returns an ExtraResources plugin that generates an IngressRouteTCP resource
+/// for exposing a service over raw TCP via Traefik.
+pub fn expose_tcp(
+  entrypoint: String,
+  service_name: String,
+  port: Int,
+) -> app.AppPlugin {
+  app.ExtraResources(generate: fn(ns, _application) {
+    let route =
+      ingress_route_tcp.new(
+        ns <> "-ingressroutetcp",
+        [entrypoint],
+        service_name,
+        port,
+      )
+    let route =
+      ingress_route_tcp.IngressRouteTCP(
+        metadata: k8s.ObjectMeta(..route.metadata, namespace: Some(ns)),
+        spec: route.spec,
+      )
+    [ingress_route_tcp.to_cymbal(route)]
+  })
 }

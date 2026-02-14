@@ -1,6 +1,8 @@
 import cymbal
 import glinfra/blueprint/container.{type Container}
 import glinfra/k8s/deployment
+import glinfra/k8s/helm_release.{type HelmRelease}
+import glinfra/k8s/helm_repository.{type HelmRepository}
 import glinfra/k8s/ingress
 import glinfra/k8s/service
 
@@ -11,10 +13,24 @@ pub type App {
     containers: List(Container),
     plugins: List(AppPlugin),
   )
+  HelmApp(
+    name: String,
+    helm_release: HelmRelease,
+    helm_repository: HelmRepository,
+    plugins: List(AppPlugin),
+  )
 }
 
 pub fn new(name: String) -> App {
   App(name, [], [], [])
+}
+
+pub fn new_helm(
+  name: String,
+  helm_release: HelmRelease,
+  helm_repository: HelmRepository,
+) -> App {
+  HelmApp(name, helm_release, helm_repository, [])
 }
 
 pub fn expose_http1(app: App, number: Int, host: String) -> App {
@@ -33,11 +49,13 @@ pub fn expose_tcp(app: App, number: Int) -> App {
 }
 
 pub fn expose(app: App, port: Port) -> App {
-  App(..app, port: [port, ..app.port])
+  let assert App(name, ports, containers, plugins) = app
+  App(name, [port, ..ports], containers, plugins)
 }
 
 pub fn add_container(app: App, container: Container) -> App {
-  App(..app, containers: [container, ..app.containers])
+  let assert App(name, ports, containers, plugins) = app
+  App(name, ports, [container, ..containers], plugins)
 }
 
 pub fn image(app: App, image_string: String) -> App {
@@ -62,5 +80,10 @@ pub type AppPlugin {
 }
 
 pub fn add_plugin(app: App, plugin: AppPlugin) -> App {
-  App(..app, plugins: [plugin, ..app.plugins])
+  case app {
+    App(name, ports, containers, plugins) ->
+      App(name, ports, containers, [plugin, ..plugins])
+    HelmApp(name, release, repo, plugins) ->
+      HelmApp(name, release, repo, [plugin, ..plugins])
+  }
 }
