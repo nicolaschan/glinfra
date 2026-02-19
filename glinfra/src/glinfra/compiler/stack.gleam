@@ -2,7 +2,10 @@ import cymbal
 import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import glinfra/blueprint/app.{type App, App, HelmApp}
+import glinfra/blueprint/app.{
+  type App, type AppPlugin, type HelmApp, type StackApp, App, ContainerApp,
+  HelmApp, HelmChartApp,
+}
 import glinfra/blueprint/container
 import glinfra/blueprint/environment.{type Environment, Provider}
 import glinfra/blueprint/job
@@ -19,14 +22,14 @@ import glinfra/k8s/persistent_volume_claim
 import glinfra/k8s/service
 
 pub type Stacks {
-  Stacks(plugins: List(app.AppPlugin), stacks: List(Stack))
+  Stacks(plugins: List(AppPlugin), stacks: List(Stack))
 }
 
 pub fn stacks() -> Stacks {
   Stacks(plugins: [], stacks: [])
 }
 
-pub fn plugins(s: Stacks, p: List(app.AppPlugin)) -> Stacks {
+pub fn plugins(s: Stacks, p: List(AppPlugin)) -> Stacks {
   Stacks(..s, plugins: list.append(s.plugins, p))
 }
 
@@ -46,7 +49,7 @@ pub fn add_all(env: Environment, s: Stacks) -> Environment {
 
 fn stack_to_cymbal(
   stack: Stack,
-  global_plugins: List(app.AppPlugin),
+  global_plugins: List(AppPlugin),
 ) -> List(cymbal.Yaml) {
   let ns = namespace.new(stack.name)
   let docs = [namespace.to_cymbal(ns)]
@@ -55,7 +58,7 @@ fn stack_to_cymbal(
   // but NOT ExtraResources yet
   let docs =
     list.fold(stack.apps, docs, fn(docs, application) {
-      app_to_core_cymbal(stack.name, global_plugins, application)
+      stack_app_to_core_cymbal(ns: stack.name, global_plugins:, application:)
       |> list.append(docs, _)
     })
 
@@ -69,10 +72,8 @@ fn stack_to_cymbal(
   // Generate ExtraResources from app plugins — these come after jobs
   let docs =
     list.fold(stack.apps, docs, fn(docs, application) {
-      let plugins = case application {
-        App(_, _, _, plugins) -> list.append(global_plugins, plugins)
-        HelmApp(_, _, _, plugins) -> list.append(global_plugins, plugins)
-      }
+      let plugins =
+        list.append(global_plugins, app.stack_app_plugins(application))
       apply_extra_resources(docs, stack.name, application, plugins)
     })
 
@@ -88,55 +89,66 @@ fn stack_to_cymbal(
   docs
 }
 
-fn app_to_core_cymbal(
-  ns: String,
-  global_plugins: List(app.AppPlugin),
-  application: App,
+fn stack_app_to_core_cymbal(
+  ns ns: String,
+  global_plugins global_plugins: List(AppPlugin),
+  application application: StackApp,
 ) -> List(cymbal.Yaml) {
   case application {
-    App(name, port, containers, plugins) -> {
-      let labels = [#("app", name)]
-      let all_plugins = list.append(global_plugins, plugins)
-
-      let docs = [
-        app_to_deployment(ns, name, port, containers, labels)
-          |> apply_deployment_plugins(application, all_plugins)
-          |> deployment.to_cymbal,
-        app_to_service(ns, name, port, labels)
-          |> apply_service_plugins(application, all_plugins)
-          |> service.to_cymbal,
-      ]
-
-      case app_to_ingress(ns, name, port, labels) {
-        Some(ing) ->
-          list.append(docs, [
-            ing
-            |> apply_ingress_plugins(application, all_plugins)
-            |> ingress.to_cymbal,
-          ])
-        None -> docs
-      }
-    }
-    HelmApp(_name, release, repo, _plugins) -> {
-      let repo_doc =
-        helm_repository.to_cymbal(helm_repository.HelmRepository(
-          metadata: k8s.ObjectMeta(..repo.metadata, namespace: Some(ns)),
-          spec: repo.spec,
-        ))
-      let release_doc =
-        helm_release.to_cymbal(helm_release.HelmRelease(
-          metadata: k8s.ObjectMeta(..release.metadata, namespace: Some(ns)),
-          spec: release.spec,
-        ))
-      [repo_doc, release_doc]
-    }
+    ContainerApp(a) -> app_to_core_cymbal(ns, global_plugins, a)
+    HelmChartApp(a) -> helm_app_to_core_cymbal(ns, a)
   }
+}
+
+fn app_to_core_cymbal(
+  ns: String,
+  global_plugins: List(AppPlugin),
+  a: App,
+) -> List(cymbal.Yaml) {
+  let App(name, port, containers, plugins) = a
+  let labels = [#("app", name)]
+  let all_plugins = list.append(global_plugins, plugins)
+  let stack_app = ContainerApp(a)
+
+  let docs = [
+    app_to_deployment(ns, name, port, containers, labels)
+      |> apply_deployment_plugins(stack_app, all_plugins)
+      |> deployment.to_cymbal,
+    app_to_service(ns, name, port, labels)
+      |> apply_service_plugins(stack_app, all_plugins)
+      |> service.to_cymbal,
+  ]
+
+  case app_to_ingress(ns, name, port, labels) {
+    Some(ing) ->
+      list.append(docs, [
+        ing
+        |> apply_ingress_plugins(stack_app, all_plugins)
+        |> ingress.to_cymbal,
+      ])
+    None -> docs
+  }
+}
+
+fn helm_app_to_core_cymbal(ns: String, a: HelmApp) -> List(cymbal.Yaml) {
+  let HelmApp(_name, release, repo, _plugins) = a
+  let repo_doc =
+    helm_repository.to_cymbal(helm_repository.HelmRepository(
+      metadata: k8s.ObjectMeta(..repo.metadata, namespace: Some(ns)),
+      spec: repo.spec,
+    ))
+  let release_doc =
+    helm_release.to_cymbal(helm_release.HelmRelease(
+      metadata: k8s.ObjectMeta(..release.metadata, namespace: Some(ns)),
+      spec: release.spec,
+    ))
+  [repo_doc, release_doc]
 }
 
 fn apply_deployment_plugins(
   dep: deployment.Deployment,
-  application: App,
-  plugins: List(app.AppPlugin),
+  application: StackApp,
+  plugins: List(AppPlugin),
 ) -> deployment.Deployment {
   list.fold(plugins, dep, fn(d, plugin) {
     case plugin {
@@ -148,8 +160,8 @@ fn apply_deployment_plugins(
 
 fn apply_ingress_plugins(
   ing: ingress.Ingress,
-  application: App,
-  plugins: List(app.AppPlugin),
+  application: StackApp,
+  plugins: List(AppPlugin),
 ) -> ingress.Ingress {
   list.fold(plugins, ing, fn(i, plugin) {
     case plugin {
@@ -161,8 +173,8 @@ fn apply_ingress_plugins(
 
 fn apply_service_plugins(
   svc: service.Service,
-  application: App,
-  plugins: List(app.AppPlugin),
+  application: StackApp,
+  plugins: List(AppPlugin),
 ) -> service.Service {
   list.fold(plugins, svc, fn(s, plugin) {
     case plugin {
@@ -175,8 +187,8 @@ fn apply_service_plugins(
 fn apply_extra_resources(
   docs: List(cymbal.Yaml),
   ns: String,
-  application: App,
-  plugins: List(app.AppPlugin),
+  application: StackApp,
+  plugins: List(AppPlugin),
 ) -> List(cymbal.Yaml) {
   list.fold(plugins, docs, fn(docs, plugin) {
     case plugin {

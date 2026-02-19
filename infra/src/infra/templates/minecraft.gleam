@@ -87,7 +87,7 @@ pub fn to_stack(mc: Minecraft) -> Stack {
 
   let minecraft_app =
     app.new_helm(name, release, repo)
-    |> app.add_plugin(traefik.expose_tcp(
+    |> app.add_helm_plugin(traefik.expose_tcp(
       mc.tcp_entrypoint,
       service_name,
       tcp_port,
@@ -96,7 +96,7 @@ pub fn to_stack(mc: Minecraft) -> Stack {
   let s =
     stack.new(name)
     |> stack.add_storage(lockfile_storage)
-    |> stack.add_app(minecraft_app)
+    |> stack.add_helm_app(minecraft_app)
 
   list.fold(mc.backups, s, fn(s, backup) {
     stack.add_job(

@@ -67,7 +67,7 @@ fn resources(
 fn service_plugin() -> app.AppPlugin {
   app.ServicePlugin(modify: fn(application, svc) {
     case application {
-      app.App(_name, port, _containers, _plugins) ->
+      app.ContainerApp(app.App(_name, port, _containers, _plugins)) ->
         case list.any(port, fn(p) { p.h2c }) {
           True ->
             service.Service(
@@ -84,7 +84,7 @@ fn service_plugin() -> app.AppPlugin {
             )
           False -> svc
         }
-      app.HelmApp(_, _, _, _) -> svc
+      app.HelmChartApp(_) -> svc
     }
   })
 }

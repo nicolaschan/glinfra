@@ -1,5 +1,4 @@
 import glinfra/blueprint/app
-import glinfra/blueprint/container
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage
 
@@ -13,10 +12,8 @@ pub fn stack() -> Stack {
   let mongo_app =
     app.new("mongo")
     |> app.expose_tcp(27_017)
-    |> app.add_container(
-      container.new("mongo:6")
-      |> container.add_storage("/data/db", storage.ref(mongo_storage)),
-    )
+    |> app.image("mongo:6")
+    |> app.add_storage("/data/db", storage.ref(mongo_storage))
 
   stack.new("market")
   |> stack.add_storage(mongo_storage)

@@ -1,5 +1,4 @@
 import glinfra/blueprint/app
-import glinfra/blueprint/container
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage
 import glinfra_providers/nvidia
@@ -14,10 +13,8 @@ pub fn stack() -> Stack {
     app.new("ollama")
     |> app.expose_tcp(11_434)
     |> app.add_plugin(nvidia.plugin())
-    |> app.add_container(
-      container.new("ollama/ollama:0.12.10")
-      |> container.add_storage("/root/.ollama", storage.ref(ollama_storage)),
-    )
+    |> app.image("ollama/ollama:0.12.10")
+    |> app.add_storage("/root/.ollama", storage.ref(ollama_storage))
 
   let openwebui =
     app.new("openwebui")
@@ -25,13 +22,8 @@ pub fn stack() -> Stack {
     |> app.add_plugin(
       traefik.ingress_middleware(local_ipwhitelist.middleware()),
     )
-    |> app.add_container(
-      container.new("ghcr.io/open-webui/open-webui:main-slim")
-      |> container.add_storage(
-        "/app/backend/data",
-        storage.ref(openwebui_storage),
-      ),
-    )
+    |> app.image("ghcr.io/open-webui/open-webui:main-slim")
+    |> app.add_storage("/app/backend/data", storage.ref(openwebui_storage))
 
   stack.new("ollama")
   |> stack.add_storage(openwebui_storage)

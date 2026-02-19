@@ -1,5 +1,4 @@
 import glinfra/blueprint/app
-import glinfra/blueprint/container
 import glinfra/blueprint/image
 import glinfra/blueprint/stack.{type Stack}
 
@@ -18,8 +17,7 @@ pub fn stack() -> Stack {
 
   app.new("baybridge")
   |> app.expose_http2(3000, "baybridge.nicolaschan.com")
-  |> app.add_container(
-    container.image(baybridge_image) |> container.with_args(args),
-  )
+  |> app.add_image(baybridge_image)
+  |> app.with_args(args)
   |> stack.singleton
 }

@@ -2,7 +2,7 @@ import cymbal
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
-import glinfra/blueprint/app.{type App}
+import glinfra/blueprint/app.{type StackApp}
 import glinfra/blueprint/container
 import glinfra/blueprint/image.{type Image}
 import glinfra/k8s
@@ -31,11 +31,11 @@ pub fn plugins(config: FluxImageUpdateConfig) -> List(app.AppPlugin) {
 
 fn app_to_image_update_cymbal(
   ns: String,
-  application: App,
+  application: StackApp,
   config: FluxImageUpdateConfig,
 ) -> List(cymbal.Yaml) {
   case application {
-    app.App(_name, _port, containers, _plugins) ->
+    app.ContainerApp(app.App(_name, _port, containers, _plugins)) ->
       containers
       |> list.filter_map(fn(c: container.Container) {
         case c.image.update {
@@ -44,9 +44,9 @@ fn app_to_image_update_cymbal(
         }
       })
       |> list.flat_map(fn(img) {
-        image_to_update_cymbal(ns, application.name, img, config)
+        image_to_update_cymbal(ns, app.stack_app_name(application), img, config)
       })
-    app.HelmApp(_, _, _, _) -> []
+    app.HelmChartApp(_) -> []
   }
 }
 
