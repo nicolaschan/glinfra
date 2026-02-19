@@ -179,7 +179,7 @@ metadata:
   namespace: minecraft
 spec:
   concurrencyPolicy: Forbid
-  schedule: "21 * * * *"
+  schedule: "21 3 * * *"
   jobTemplate:
     spec:
       backoffLimit: 1

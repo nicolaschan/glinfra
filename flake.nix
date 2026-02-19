@@ -26,6 +26,13 @@
                   sha256 = pkg.outer_checksum;
                 };
               }]
+              else if source == "git" then [{
+                inherit name;
+                path = builtins.fetchGit {
+                  url = pkg.repo;
+                  rev = pkg.commit;
+                };
+              }]
               else if source == "local" then [{
                 inherit name;
                 path = self + "/infra/${pkg.path}";

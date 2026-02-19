@@ -17,7 +17,7 @@ const randall_backup = minecraft.Backup(
 
 const francis_backup = minecraft.Backup(
   name: "francis",
-  schedule: "21 * * * *",
+  schedule: "21 3 * * *",
   sftp_repo: "sftp://nc99@fnixon-externalsvc.endpoint.glaceon.org:55/harddrive2/backups/minecraft-restic",
   extra_flags: ["-d", "sequential", "-m", "-1"],
 )
