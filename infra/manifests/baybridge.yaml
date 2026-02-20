@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - image: "ghcr.io/nicolaschan/baybridge:master-20296814492"
-        name: baybridge-0
+        name: baybridge
         ports:
         - containerPort: 3000
           protocol: TCP

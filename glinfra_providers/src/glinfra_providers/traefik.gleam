@@ -68,7 +68,7 @@ fn resources(config: TraefikConfig) -> List(Resource) {
 fn service_plugin() -> app.AppPlugin {
   app.ServicePlugin(modify: fn(application, svc) {
     case application {
-      app.ContainerApp(app.App(_name, port, _containers, _plugins)) ->
+      app.ContainerApp(app.App(_name, port, _containers, _plugins, _strategy)) ->
         case list.any(port, fn(p) { p.h2c }) {
           True ->
             service.Service(

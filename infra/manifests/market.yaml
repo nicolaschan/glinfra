@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
       - image: "mongo:6"
-        name: mongo-0
+        name: mongo
         ports:
         - containerPort: 27017
           protocol: TCP
@@ -73,7 +73,7 @@ spec:
     spec:
       containers:
       - image: "ghcr.io/nicolaschan/market:latest"
-        name: market-0
+        name: market
         ports:
         - containerPort: 8080
           protocol: TCP

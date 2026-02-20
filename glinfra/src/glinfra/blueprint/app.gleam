@@ -1,5 +1,6 @@
 import cymbal
 import gleam/list
+import gleam/option.{type Option, None, Some}
 import glinfra/blueprint/container.{type Container}
 import glinfra/blueprint/image.{type Image}
 import glinfra/blueprint/storage.{type StorageRef}
@@ -15,6 +16,7 @@ pub type App {
     port: List(Port),
     containers: List(Container),
     plugins: List(AppPlugin),
+    strategy: Option(deployment.Strategy),
   )
 }
 
@@ -33,7 +35,7 @@ pub type StackApp {
 }
 
 pub fn new(name: String) -> App {
-  App(name, [], [], [])
+  App(name, [], [], [], None)
 }
 
 pub fn new_helm(
@@ -104,6 +106,28 @@ pub fn add_storage(app: App, mount_path: String, storage_ref: StorageRef) -> App
       container.add_storage(c, mount_path, storage_ref)
     })
   App(..app, containers: containers)
+}
+
+pub fn add_env(app: App, name: String, value: String) -> App {
+  let containers =
+    list.map(app.containers, fn(c) { container.add_env(c, name, value) })
+  App(..app, containers: containers)
+}
+
+pub fn add_secret_volume(app: App, ref: container.SecretVolumeRef) -> App {
+  let containers =
+    list.map(app.containers, fn(c) { container.add_secret_volume(c, ref) })
+  App(..app, containers: containers)
+}
+
+pub fn with_lifecycle(app: App, lifecycle: deployment.Lifecycle) -> App {
+  let containers =
+    list.map(app.containers, fn(c) { container.with_lifecycle(c, lifecycle) })
+  App(..app, containers: containers)
+}
+
+pub fn with_strategy(app: App, strategy: deployment.Strategy) -> App {
+  App(..app, strategy: Some(strategy))
 }
 
 pub fn add_plugin(app: App, plugin: AppPlugin) -> App {

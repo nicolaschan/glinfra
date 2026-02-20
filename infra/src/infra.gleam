@@ -7,6 +7,7 @@ import glinfra_providers/kustomize
 import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
 import infra/apps/baybridge
+import infra/apps/cloudflare_ddns
 import infra/apps/market
 import infra/apps/minecraft
 import infra/apps/mines
@@ -51,6 +52,7 @@ pub fn main() -> Nil {
     |> stack.add(mines.stack())
     |> stack.add(ollama.stack())
     |> stack.add(minecraft.stack())
+    |> stack.add(cloudflare_ddns.stack())
 
   environment.new("monad")
   |> cert_manager.add(my_cert_manager.config())

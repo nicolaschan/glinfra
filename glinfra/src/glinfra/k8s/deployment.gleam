@@ -12,11 +12,12 @@ pub type EnvVar {
 }
 
 pub type VolumeMount {
-  VolumeMount(name: String, mount_path: String)
+  VolumeMount(name: String, mount_path: String, read_only: Option(Bool))
 }
 
 pub type Volume {
   PvcVolume(name: String, claim_name: String)
+  SecretVolume(name: String, secret_name: String)
 }
 
 pub type Strategy {
@@ -31,6 +32,29 @@ pub type ResourceRequirements {
   )
 }
 
+pub type LifecycleHandler {
+  ExecHandler(command: List(String))
+}
+
+pub type Lifecycle {
+  Lifecycle(
+    post_start: Option(LifecycleHandler),
+    pre_stop: Option(LifecycleHandler),
+  )
+}
+
+pub fn lifecycle() -> Lifecycle {
+  Lifecycle(post_start: None, pre_stop: None)
+}
+
+pub fn post_start(lc: Lifecycle, handler: LifecycleHandler) -> Lifecycle {
+  Lifecycle(..lc, post_start: Some(handler))
+}
+
+pub fn pre_stop(lc: Lifecycle, handler: LifecycleHandler) -> Lifecycle {
+  Lifecycle(..lc, pre_stop: Some(handler))
+}
+
 pub type Container {
   Container(
     name: String,
@@ -39,6 +63,7 @@ pub type Container {
     env: List(EnvVar),
     volume_mounts: List(VolumeMount),
     resources: ResourceRequirements,
+    lifecycle: Option(Lifecycle),
   )
 }
 
@@ -139,6 +164,11 @@ fn volume_to_cymbal(v: Volume) -> cymbal.Yaml {
           cymbal.block([#("claimName", cymbal.string(claim_name))]),
         ),
       ])
+    SecretVolume(name, secret_name) ->
+      cymbal.block([
+        #("name", cymbal.string(name)),
+        #("secret", cymbal.block([#("secretName", cymbal.string(secret_name))])),
+      ])
   }
 }
 
@@ -193,14 +223,25 @@ fn container_to_cymbal(c: Container) -> cymbal.Yaml {
     }
   }
 
+  let fields = case c.lifecycle {
+    Some(lifecycle) ->
+      list.append(fields, [#("lifecycle", lifecycle_to_cymbal(lifecycle))])
+    None -> fields
+  }
+
   cymbal.block(fields)
 }
 
 fn volume_mount_to_cymbal(m: VolumeMount) -> cymbal.Yaml {
-  cymbal.block([
+  let fields = [
     #("mountPath", cymbal.string(m.mount_path)),
     #("name", cymbal.string(m.name)),
-  ])
+  ]
+  let fields = case m.read_only {
+    Some(True) -> list.append(fields, [#("readOnly", cymbal.bool(True))])
+    _ -> fields
+  }
+  cymbal.block(fields)
 }
 
 fn container_port_to_cymbal(p: ContainerPort) -> cymbal.Yaml {
@@ -217,6 +258,33 @@ fn env_var_to_cymbal(e: EnvVar) -> cymbal.Yaml {
     #("name", cymbal.string(e.name)),
     #("value", cymbal.string(e.value)),
   ])
+}
+
+fn lifecycle_to_cymbal(l: Lifecycle) -> cymbal.Yaml {
+  let fields = case l.post_start {
+    Some(handler) -> [#("postStart", lifecycle_handler_to_cymbal(handler))]
+    None -> []
+  }
+  let fields = case l.pre_stop {
+    Some(handler) ->
+      list.append(fields, [#("preStop", lifecycle_handler_to_cymbal(handler))])
+    None -> fields
+  }
+  cymbal.block(fields)
+}
+
+fn lifecycle_handler_to_cymbal(h: LifecycleHandler) -> cymbal.Yaml {
+  case h {
+    ExecHandler(command) ->
+      cymbal.block([
+        #(
+          "exec",
+          cymbal.block([
+            #("command", cymbal.array(list.map(command, cymbal.string))),
+          ]),
+        ),
+      ])
+  }
 }
 
 pub fn new(
@@ -253,6 +321,7 @@ pub fn new(
             env: [],
             volume_mounts: [],
             resources: ResourceRequirements(limits: [], requests: []),
+            lifecycle: None,
           ),
         ],
         volumes: [],

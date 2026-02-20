@@ -107,19 +107,26 @@ fn app_to_core_cymbal(
   global_plugins: List(AppPlugin),
   a: App,
 ) -> List(cymbal.Yaml) {
-  let App(name, port, containers, plugins) = a
+  let App(name, port, containers, plugins, strategy) = a
   let labels = [#("app", name)]
   let all_plugins = list.append(global_plugins, plugins)
   let stack_app = ContainerApp(a)
 
   let docs = [
-    app_to_deployment(ns, name, port, containers, labels)
-      |> apply_deployment_plugins(stack_app, all_plugins)
-      |> deployment.to_cymbal,
-    app_to_service(ns, name, port, labels)
-      |> apply_service_plugins(stack_app, all_plugins)
-      |> service.to_cymbal,
+    app_to_deployment(ns, name, port, containers, labels, strategy)
+    |> apply_deployment_plugins(stack_app, all_plugins)
+    |> deployment.to_cymbal,
   ]
+
+  let docs = case port {
+    [] -> docs
+    _ ->
+      list.append(docs, [
+        app_to_service(ns, name, port, labels)
+        |> apply_service_plugins(stack_app, all_plugins)
+        |> service.to_cymbal,
+      ])
+  }
 
   case app_to_ingress(ns, name, port, labels) {
     Some(ing) ->
@@ -207,16 +214,21 @@ fn app_to_deployment(
   port: List(app.Port),
   app_containers: List(container.Container),
   labels: List(#(String, String)),
+  explicit_strategy: Option(deployment.Strategy),
 ) -> deployment.Deployment {
   let has_storage =
     list.any(app_containers, fn(c) { !list.is_empty(c.storage) })
 
-  let strategy = case has_storage {
-    True -> Some(deployment.Recreate)
-    False -> None
+  let strategy = case explicit_strategy {
+    Some(s) -> Some(s)
+    None ->
+      case has_storage {
+        True -> Some(deployment.Recreate)
+        False -> None
+      }
   }
 
-  let volumes =
+  let pvc_volumes =
     list.flat_map(app_containers, fn(c) {
       list.map(c.storage, fn(s) {
         let #(_mount_path, storage_ref) = s
@@ -225,6 +237,19 @@ fn app_to_deployment(
       })
     })
 
+  let secret_volumes =
+    list.flat_map(app_containers, fn(c) {
+      list.map(c.secret_volumes, fn(sv) {
+        deployment.SecretVolume(
+          name: sv.name <> "-volume",
+          secret_name: sv.name,
+        )
+      })
+    })
+
+  let volumes = list.append(pvc_volumes, secret_volumes)
+
+  let container_count = list.length(app_containers)
   let containers =
     list.index_map(app_containers, fn(c, i) {
       let image_ref = c.image.name <> ":" <> c.image.tag
@@ -235,22 +260,44 @@ fn app_to_deployment(
             protocol: Some("TCP"),
           )
         })
-      let volume_mounts =
+      let pvc_mounts =
         list.map(c.storage, fn(s) {
           let #(mount_path, storage_ref) = s
           deployment.VolumeMount(
             name: storage_ref.name <> "-volume",
             mount_path: mount_path,
+            read_only: None,
           )
         })
-      let container_name = name <> "-" <> int.to_string(i)
+      let secret_mounts =
+        list.map(c.secret_volumes, fn(sv) {
+          deployment.VolumeMount(
+            name: sv.name <> "-volume",
+            mount_path: sv.mount_path,
+            read_only: case sv.read_only {
+              True -> Some(True)
+              False -> None
+            },
+          )
+        })
+      let volume_mounts = list.append(pvc_mounts, secret_mounts)
+      let env =
+        list.map(list.reverse(c.env), fn(e) {
+          let #(k, v) = e
+          deployment.EnvVar(name: k, value: v)
+        })
+      let container_name = case container_count {
+        1 -> name
+        _ -> name <> "-" <> int.to_string(i)
+      }
       deployment.Container(
         name: container_name,
         image: image_ref,
         ports: ports,
-        env: [],
+        env: env,
         volume_mounts: volume_mounts,
         resources: deployment.ResourceRequirements(limits: [], requests: []),
+        lifecycle: c.lifecycle,
       )
     })
 

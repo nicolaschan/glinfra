@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
       - image: "ghcr.io/nicolaschan/mines:v1.0.5"
-        name: mines-0
+        name: mines
         ports:
         - containerPort: 8080
           protocol: TCP

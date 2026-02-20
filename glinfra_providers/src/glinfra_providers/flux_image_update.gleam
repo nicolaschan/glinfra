@@ -35,7 +35,7 @@ fn app_to_image_update_cymbal(
   config: FluxImageUpdateConfig,
 ) -> List(cymbal.Yaml) {
   case application {
-    app.ContainerApp(app.App(_name, _port, containers, _plugins)) ->
+    app.ContainerApp(app.App(_name, _port, containers, _plugins, _strategy)) ->
       containers
       |> list.filter_map(fn(c: container.Container) {
         case c.image.update {

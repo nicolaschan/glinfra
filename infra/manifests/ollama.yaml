@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
       - image: "ollama/ollama:0.12.10"
-        name: ollama-0
+        name: ollama
         ports:
         - containerPort: 11434
           protocol: TCP
@@ -81,7 +81,7 @@ spec:
     spec:
       containers:
       - image: "ghcr.io/open-webui/open-webui:main-slim"
-        name: openwebui-0
+        name: openwebui
         ports:
         - containerPort: 8080
           protocol: TCP
