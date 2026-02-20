@@ -4,8 +4,12 @@ pub type Environment {
   Environment(name: String, providers: List(Provider))
 }
 
+pub type Resource {
+  Resource(name: String, render: fn(Environment) -> List(cymbal.Yaml))
+}
+
 pub type Provider {
-  Provider(resources: List(#(String, fn(Environment) -> List(cymbal.Yaml))))
+  Provider(resources: List(Resource))
 }
 
 pub fn new(name: String) -> Environment {

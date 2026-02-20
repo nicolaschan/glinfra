@@ -2,7 +2,7 @@ import cymbal
 import gleam/io
 import gleam/list
 import gleam/string
-import glinfra/blueprint/environment.{type Environment}
+import glinfra/blueprint/environment.{type Environment, Resource}
 import simplifile
 
 pub fn manifest(env: Environment, output_dir: String) {
@@ -46,8 +46,8 @@ fn merge_manifests(
 fn env_to_cymbal(env: Environment) -> List(#(String, List(cymbal.Yaml))) {
   list.flat_map(env.providers, fn(p) {
     list.map(p.resources, fn(entry) {
-      let #(name, generate) = entry
-      #(name, generate(env))
+      let Resource(name, render) = entry
+      #(name, render(env))
     })
   })
 }

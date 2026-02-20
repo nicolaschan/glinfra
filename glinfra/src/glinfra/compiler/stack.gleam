@@ -7,7 +7,7 @@ import glinfra/blueprint/app.{
   HelmApp, HelmChartApp,
 }
 import glinfra/blueprint/container
-import glinfra/blueprint/environment.{type Environment, Provider}
+import glinfra/blueprint/environment.{type Environment, Provider, Resource}
 import glinfra/blueprint/job
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage.{type Storage}
@@ -41,7 +41,9 @@ pub fn add_all(env: Environment, s: Stacks) -> Environment {
   list.fold(list.reverse(s.stacks), env, fn(env, stack) {
     let provider =
       Provider(resources: [
-        #(stack.name, fn(_env) { stack_to_cymbal(stack, s.plugins) }),
+        Resource(name: stack.name, render: fn(_env) {
+          stack_to_cymbal(stack, s.plugins)
+        }),
       ])
     environment.add_provider(env, provider)
   })

@@ -1,19 +1,19 @@
 import cymbal
 import gleam/list
-import glinfra/blueprint/environment.{type Environment, Provider}
+import glinfra/blueprint/environment.{type Environment, Provider, Resource}
 
 pub fn add(env: Environment) -> Environment {
   environment.add_provider(env, provider())
 }
 
 fn provider() -> environment.Provider {
-  Provider(resources: [#("kustomization", kustomization)])
+  Provider(resources: [Resource(name: "kustomization", render: kustomization)])
 }
 
 fn kustomization(env: Environment) -> List(cymbal.Yaml) {
   let all_resources =
     list.flat_map(env.providers, fn(p) {
-      list.map(p.resources, fn(entry) { entry.0 <> ".yaml" })
+      list.map(p.resources, fn(entry) { entry.name <> ".yaml" })
     })
     |> list.filter(fn(name) { name != "kustomization.yaml" })
 

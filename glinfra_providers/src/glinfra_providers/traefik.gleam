@@ -1,9 +1,10 @@
-import cymbal
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import glinfra/blueprint/app
-import glinfra/blueprint/environment.{type Environment, Provider}
+import glinfra/blueprint/environment.{
+  type Environment, type Resource, Provider, Resource,
+}
 import glinfra/k8s
 import glinfra/k8s/ingress
 import glinfra/k8s/service
@@ -51,15 +52,15 @@ pub fn add(env: Environment, config: TraefikConfig) -> Environment {
   }
 }
 
-fn resources(
-  config: TraefikConfig,
-) -> List(#(String, fn(Environment) -> List(cymbal.Yaml))) {
+fn resources(config: TraefikConfig) -> List(Resource) {
   let all_middlewares =
     list.append(config.global_middlewares, config.extra_middlewares)
   case all_middlewares {
     [] -> []
     mws -> [
-      #("traefik-middlewares", fn(_env) { list.map(mws, middleware.to_cymbal) }),
+      Resource(name: "traefik-middlewares", render: fn(_env) {
+        list.map(mws, middleware.to_cymbal)
+      }),
     ]
   }
 }

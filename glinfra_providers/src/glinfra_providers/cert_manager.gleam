@@ -1,6 +1,6 @@
 import cymbal
 import gleam/list
-import glinfra/blueprint/environment.{type Environment, Provider}
+import glinfra/blueprint/environment.{type Environment, Provider, Resource}
 import glinfra/k8s/certificate.{type Certificate}
 import glinfra/k8s/cluster_issuer.{type ClusterIssuer}
 
@@ -32,7 +32,9 @@ pub fn add_certificate(
 pub fn add(env: Environment, c: CertManagerConfig) -> Environment {
   let resources = case c.issuers, c.certificates {
     [], [] -> []
-    _, _ -> [#("cert-manager-issuers", fn(_env) { to_cymbal(c) })]
+    _, _ -> [
+      Resource(name: "cert-manager-issuers", render: fn(_env) { to_cymbal(c) }),
+    ]
   }
   case resources {
     [] -> env
