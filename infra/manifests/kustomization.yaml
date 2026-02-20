@@ -9,3 +9,4 @@ resources:
 - "x3dtictactoe.yaml"
 - "baybridge.yaml"
 - "traefik-middlewares.yaml"
+- "cert-manager-issuers.yaml"

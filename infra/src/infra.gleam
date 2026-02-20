@@ -1,6 +1,7 @@
 import glinfra/blueprint/environment
 import glinfra/compile
 import glinfra/compiler/stack
+import glinfra_providers/cert_manager
 import glinfra_providers/flux_image_update.{FluxImageUpdateConfig}
 import glinfra_providers/kustomize
 import glinfra_providers/letsencrypt
@@ -14,6 +15,7 @@ import infra/apps/x3dtictactoe
 import infra/middleware/hsts
 import infra/middleware/https_redirect
 import infra/middleware/local_ipwhitelist
+import infra/providers/cert_manager as my_cert_manager
 
 pub fn main() -> Nil {
   let traefik_config =
@@ -51,6 +53,7 @@ pub fn main() -> Nil {
     |> stack.add(minecraft.stack())
 
   environment.new("monad")
+  |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
   |> kustomize.add()
   |> stack.add_all(stacks)
