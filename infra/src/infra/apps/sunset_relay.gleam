@@ -16,7 +16,7 @@ pub fn stack() -> Stack {
 
   let relay_app =
     app.new("sunset-relay")
-    |> app.expose_http1(4001, "relay.sunset.chat")
+    |> app.expose_http2(4001, "relay.sunset.chat")
     |> app.add_image(relay_image)
     |> app.with_args(args)
     |> app.add_storage("/data", storage.ref(relay_storage))
