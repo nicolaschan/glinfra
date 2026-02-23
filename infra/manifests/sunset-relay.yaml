@@ -48,8 +48,6 @@ metadata:
   namespace: sunset-relay
   labels:
     app: sunset-relay
-  annotations:
-    "traefik.ingress.kubernetes.io/service.serversscheme": h2c
 spec:
   selector:
     app: sunset-relay
