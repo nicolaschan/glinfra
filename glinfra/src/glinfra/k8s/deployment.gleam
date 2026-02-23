@@ -59,6 +59,7 @@ pub type Container {
   Container(
     name: String,
     image: String,
+    args: Option(List(String)),
     ports: List(ContainerPort),
     env: List(EnvVar),
     volume_mounts: List(VolumeMount),
@@ -177,6 +178,14 @@ fn container_to_cymbal(c: Container) -> cymbal.Yaml {
     #("image", cymbal.string(c.image)),
     #("name", cymbal.string(c.name)),
   ]
+
+  let fields = case c.args {
+    Some(args) ->
+      list.append(fields, [
+        #("args", cymbal.array(list.map(args, cymbal.string))),
+      ])
+    None -> fields
+  }
 
   let fields = case c.ports {
     [] -> fields
@@ -317,6 +326,7 @@ pub fn new(
           Container(
             name: name,
             image: image,
+            args: None,
             ports: [ContainerPort(container_port: port, protocol: Some("TCP"))],
             env: [],
             volume_mounts: [],

@@ -12,6 +12,7 @@ import infra/apps/market
 import infra/apps/minecraft
 import infra/apps/mines
 import infra/apps/ollama
+import infra/apps/sunset_relay
 import infra/apps/x3dtictactoe
 import infra/middleware/hsts
 import infra/middleware/https_redirect
@@ -53,6 +54,7 @@ pub fn main() -> Nil {
     |> stack.add(ollama.stack())
     |> stack.add(minecraft.stack())
     |> stack.add(cloudflare_ddns.stack())
+    |> stack.add(sunset_relay.stack())
 
   environment.new("monad")
   |> cert_manager.add(my_cert_manager.config())

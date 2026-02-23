@@ -2,59 +2,65 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: baybridge
+  name: sunset-relay
 ---
 apiVersion: "apps/v1"
 kind: Deployment
 metadata:
-  name: baybridge
-  namespace: baybridge
+  name: sunset-relay
+  namespace: sunset-relay
   labels:
-    app: baybridge
+    app: sunset-relay
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: baybridge
+      app: sunset-relay
+  strategy:
+    type: Recreate
   template:
     metadata:
-      name: baybridge
+      name: sunset-relay
       labels:
-        app: baybridge
+        app: sunset-relay
     spec:
       containers:
-      - image: "ghcr.io/nicolaschan/baybridge:master-20296814492"
-        name: baybridge
+      - image: "ghcr.io/nicolaschan/sunset-relay:latest"
+        name: sunset-relay
         args:
-        - serve
-        - --peer
-        - "https://baybridge.neelay.net"
+        - --identity
+        - "/data/identity.key"
         ports:
-        - containerPort: 3000
+        - containerPort: 4001
           protocol: TCP
+        volumeMounts:
+        - mountPath: "/data"
+          name: relay-data-volume
+      volumes:
+      - name: relay-data-volume
+        persistentVolumeClaim:
+          claimName: relay-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: baybridge
-  namespace: baybridge
+  name: sunset-relay
+  namespace: sunset-relay
   labels:
-    app: baybridge
-  annotations:
-    "traefik.ingress.kubernetes.io/service.serversscheme": h2c
+    app: sunset-relay
 spec:
   selector:
-    app: baybridge
+    app: sunset-relay
   ports:
-  - port: 3000
-    targetPort: 3000
+  - port: 4001
+    targetPort: 4001
     protocol: TCP
 ---
 apiVersion: "networking.k8s.io/v1"
 kind: Ingress
 metadata:
-  name: baybridge
-  namespace: baybridge
+  name: sunset-relay
+  namespace: sunset-relay
   annotations:
     "cert-manager.io/cluster-issuer": letsencrypt-prod
     "cert-manager.io/private-key-algorithm": ECDSA
@@ -62,40 +68,40 @@ metadata:
     "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
 spec:
   rules:
-  - host: "baybridge.nicolaschan.com"
+  - host: "relay.sunset.chat"
     http:
       paths:
       - path: "/"
         pathType: Prefix
         backend:
           service:
-            name: baybridge
+            name: sunset-relay
             port:
-              number: 3000
+              number: 4001
   tls:
   - hosts:
-    - "baybridge.nicolaschan.com"
-    secretName: baybridge-cert
+    - "relay.sunset.chat"
+    secretName: sunset-relay-cert
 ---
 apiVersion: "image.toolkit.fluxcd.io/v1"
 kind: ImageRepository
 metadata:
-  name: ghcr-io-nicolaschan-baybridge-repo
-  namespace: baybridge
+  name: ghcr-io-nicolaschan-sunset-relay-repo
+  namespace: sunset-relay
 spec:
-  image: "ghcr.io/nicolaschan/baybridge"
+  image: "ghcr.io/nicolaschan/sunset-relay"
   interval: "5m"
 ---
 apiVersion: "image.toolkit.fluxcd.io/v1"
 kind: ImagePolicy
 metadata:
-  name: ghcr-io-nicolaschan-baybridge
-  namespace: baybridge
+  name: ghcr-io-nicolaschan-sunset-relay
+  namespace: sunset-relay
 spec:
   filterTags:
     pattern: "^master-[0-9]+$"
   imageRepositoryRef:
-    name: ghcr-io-nicolaschan-baybridge-repo
+    name: ghcr-io-nicolaschan-sunset-relay-repo
   policy:
     alphabetical:
       order: asc
@@ -103,15 +109,15 @@ spec:
 apiVersion: "image.toolkit.fluxcd.io/v1"
 kind: ImageUpdateAutomation
 metadata:
-  name: ghcr-io-nicolaschan-baybridge-update
-  namespace: baybridge
+  name: ghcr-io-nicolaschan-sunset-relay-update
+  namespace: sunset-relay
 spec:
   git:
     commit:
       author:
         email: "fluxcdbot@nicolaschan.com"
         name: fluxcdbot
-      messageTemplate: "chore: update baybridge image"
+      messageTemplate: "chore: update sunset-relay image"
     push:
       branch: master
   interval: "5m"
@@ -120,4 +126,17 @@ spec:
     name: nicolaschan-infra
     namespace: default
   update:
-    path: "./apps/monad/baybridge"
+    path: "./apps/monad/sunset-relay"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: relay-data
+  namespace: sunset-relay
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "1G"
+  storageClassName: local-path

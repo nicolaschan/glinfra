@@ -293,6 +293,7 @@ fn app_to_deployment(
       deployment.Container(
         name: container_name,
         image: image_ref,
+        args: c.args,
         ports: ports,
         env: env,
         volume_mounts: volume_mounts,
