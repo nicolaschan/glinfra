@@ -121,10 +121,16 @@ spec:
       template:
         spec:
           volumes:
+          - name: schedules-volume
+            persistentVolumeClaim:
+              claimName: schedules
           containers:
           - name: backup-container
             image: "alpine/git"
             imagePullPolicy: IfNotPresent
+            volumeMounts:
+            - mountPath: "/schedules"
+              name: schedules-volume
             command:
             - "/bin/sh"
             - -c

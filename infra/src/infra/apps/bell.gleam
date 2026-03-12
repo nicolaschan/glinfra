@@ -24,6 +24,7 @@ pub fn stack() -> Stack {
       "-c",
       "rm -rf /schedules/lost+found; git clone https://github.com/nicolaschan/schedules.git /schedules || (cd /schedules; git pull origin master)",
     ])
+    |> job.mount_pvc("/schedules", storage.ref(schedule_storage))
 
   let bell_app =
     app.new("bell")
