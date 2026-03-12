@@ -5,4 +5,4 @@ resources:
 - "bell.yaml"
 - "cert-manager.yaml"
 - "traefik-middlewares.yaml"
-# - "cert-manager-issuers.yaml"
+- "cert-manager-issuers.yaml"

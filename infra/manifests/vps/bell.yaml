@@ -25,7 +25,7 @@ spec:
         app: bell
     spec:
       containers:
-      - image: "ghcr.io/nicolaschan/bell:4.12.3"
+      - image: "ghcr.io/nicolaschan/bell:v4.12.3"
         name: bell
         ports:
         - containerPort: 8080
