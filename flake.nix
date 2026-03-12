@@ -87,7 +87,7 @@
       });
 
       devShells = eachSystem (_system: pkgs: {
-        default = pkgs.mkShell { packages = gleamBuildInputs pkgs; };
+        default = pkgs.mkShell { packages = (gleamBuildInputs pkgs) ++ (with pkgs; [ fluxcd k9s ]); };
       });
     };
 }
