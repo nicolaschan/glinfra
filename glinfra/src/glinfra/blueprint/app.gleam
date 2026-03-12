@@ -114,6 +114,14 @@ pub fn add_env(app: App, name: String, value: String) -> App {
   App(..app, containers: containers)
 }
 
+pub fn add_envs(app: App, envs: List(#(String, String))) -> App {
+  envs
+  |> list.fold(app, fn(app, env) {
+    let #(key, value) = env
+    add_env(app, key, value)
+  })
+}
+
 pub fn add_secret_volume(app: App, ref: container.SecretVolumeRef) -> App {
   let containers =
     list.map(app.containers, fn(c) { container.add_secret_volume(c, ref) })

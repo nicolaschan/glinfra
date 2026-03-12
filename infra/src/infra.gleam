@@ -7,6 +7,7 @@ import glinfra_providers/kustomize
 import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
 import infra/apps/baybridge
+import infra/apps/bell
 import infra/apps/cloudflare_ddns
 import infra/apps/market
 import infra/apps/minecraft
@@ -42,11 +43,14 @@ pub fn main() -> Nil {
       path_prefix: "./apps/monad",
     )
 
-  let stacks =
+  let base_stacks =
     stack.stacks()
     |> stack.plugins(letsencrypt.plugins())
     |> stack.plugins(traefik.plugins(traefik_config))
     |> stack.plugins(flux_image_update.plugins(flux_config))
+
+  let monad_stacks =
+    base_stacks
     |> stack.add(baybridge.stack())
     |> stack.add(x3dtictactoe.stack())
     |> stack.add(market.stack())
@@ -56,10 +60,21 @@ pub fn main() -> Nil {
     |> stack.add(cloudflare_ddns.stack())
     |> stack.add(sunset_relay.stack())
 
+  let vps_stacks =
+    base_stacks
+    |> stack.add(bell.stack())
+
   environment.new("monad")
   |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
   |> kustomize.add()
-  |> stack.add_all(stacks)
+  |> stack.add_all(monad_stacks)
   |> compile.manifest("manifests")
+
+  environment.new("vps")
+  |> cert_manager.add(my_cert_manager.config())
+  |> traefik.add(traefik_config)
+  |> kustomize.add()
+  |> stack.add_all(vps_stacks)
+  |> compile.manifest("manifests/vps")
 }

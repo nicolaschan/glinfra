@@ -10,7 +10,7 @@ pub type Storage {
 }
 
 pub type StorageRef {
-  StorageRef(name: String)
+  StorageRef(name: String, read_only: Bool)
 }
 
 pub fn new(name: String, size: String) -> Storage {
@@ -37,9 +37,13 @@ pub fn with_access_modes(storage: Storage, modes: List(String)) -> Storage {
 }
 
 pub fn ref(storage: Storage) -> StorageRef {
-  StorageRef(name: storage.name)
+  StorageRef(name: storage.name, read_only: False)
+}
+
+pub fn readonly_ref(storage: Storage) -> StorageRef {
+  StorageRef(name: storage.name, read_only: True)
 }
 
 pub fn external(name: String) -> StorageRef {
-  StorageRef(name: name)
+  StorageRef(name: name, read_only: False)
 }

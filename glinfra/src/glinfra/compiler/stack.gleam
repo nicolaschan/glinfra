@@ -233,7 +233,14 @@ fn app_to_deployment(
       list.map(c.storage, fn(s) {
         let #(_mount_path, storage_ref) = s
         let pvc_name = storage_ref.name
-        deployment.PvcVolume(name: pvc_name <> "-volume", claim_name: pvc_name)
+        deployment.PvcVolume(
+          name: pvc_name <> "-volume",
+          claim_name: pvc_name,
+          read_only: case storage_ref.read_only {
+            True -> Some(True)
+            False -> None
+          },
+        )
       })
     })
 

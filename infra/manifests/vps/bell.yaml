@@ -1,0 +1,145 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bell
+---
+apiVersion: "apps/v1"
+kind: Deployment
+metadata:
+  name: bell
+  namespace: bell
+  labels:
+    app: bell
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bell
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      name: bell
+      labels:
+        app: bell
+    spec:
+      containers:
+      - image: "ghcr.io/nicolaschan/bell:4.12.3"
+        name: bell
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        env:
+        - name: WEBSERVER_PORT
+          value: "8080"
+        - name: SERVER_NAME
+          value: bell
+        - name: STATS_REDIRECT
+          value: "https://stats.bell.plus/public/dashboard/49e7b501-3e1c-47f3-945e-83e727c359ba"
+        - name: ENABLE_WS_HITS
+          value: "false"
+        - name: USE_H2
+          value: "true"
+        - name: POSTGRES_ENABLED
+          value: "false"
+        - name: POSTGRES_HOST
+          value: "false"
+        - name: POSTGRES_USER
+          value: "false"
+        - name: POSTGRES_PASSWORD
+          value: "false"
+        - name: POSTGRES_DATABASE
+          value: "false"
+        - name: POSTGRES_PORT
+          value: "false"
+        volumeMounts:
+        - mountPath: "/bell/schedules"
+          name: schedules-volume
+      volumes:
+      - name: schedules-volume
+        persistentVolumeClaim:
+          claimName: schedules
+          readOnly: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bell
+  namespace: bell
+  labels:
+    app: bell
+  annotations:
+    "traefik.ingress.kubernetes.io/service.serversscheme": h2c
+spec:
+  selector:
+    app: bell
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+---
+apiVersion: "networking.k8s.io/v1"
+kind: Ingress
+metadata:
+  name: bell
+  namespace: bell
+  annotations:
+    "cert-manager.io/cluster-issuer": letsencrypt-prod
+    "cert-manager.io/private-key-algorithm": ECDSA
+    "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure"
+    "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
+spec:
+  rules:
+  - host: "vps.bell.plus"
+    http:
+      paths:
+      - path: "/"
+        pathType: Prefix
+        backend:
+          service:
+            name: bell
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - "vps.bell.plus"
+    secretName: bell-cert
+---
+apiVersion: "batch/v1"
+kind: CronJob
+metadata:
+  name: update_schedules
+  namespace: bell
+spec:
+  concurrencyPolicy: Forbid
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 18000
+      template:
+        spec:
+          volumes:
+          containers:
+          - name: backup-container
+            image: "alpine/git"
+            imagePullPolicy: IfNotPresent
+            command:
+            - "/bin/sh"
+            - -c
+            - "rm -rf /schedules/lost+found; git clone https://github.com/nicolaschan/schedules.git /schedules || (cd /schedules; git pull origin master)"
+          restartPolicy: Never
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: schedules
+  namespace: bell
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "1G"
+  storageClassName: local-path

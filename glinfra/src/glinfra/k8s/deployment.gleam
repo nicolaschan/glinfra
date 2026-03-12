@@ -16,7 +16,7 @@ pub type VolumeMount {
 }
 
 pub type Volume {
-  PvcVolume(name: String, claim_name: String)
+  PvcVolume(name: String, claim_name: String, read_only: Option(Bool))
   SecretVolume(name: String, secret_name: String)
 }
 
@@ -157,14 +157,17 @@ fn pod_template_to_cymbal(t: PodTemplateSpec) -> cymbal.Yaml {
 
 fn volume_to_cymbal(v: Volume) -> cymbal.Yaml {
   case v {
-    PvcVolume(name, claim_name) ->
+    PvcVolume(name, claim_name, read_only) -> {
+      let pvc_fields = [#("claimName", cymbal.string(claim_name))]
+      let pvc_fields = case read_only {
+        Some(v) -> list.append(pvc_fields, [#("readOnly", cymbal.bool(v))])
+        _ -> pvc_fields
+      }
       cymbal.block([
         #("name", cymbal.string(name)),
-        #(
-          "persistentVolumeClaim",
-          cymbal.block([#("claimName", cymbal.string(claim_name))]),
-        ),
+        #("persistentVolumeClaim", cymbal.block(pvc_fields)),
       ])
+    }
     SecretVolume(name, secret_name) ->
       cymbal.block([
         #("name", cymbal.string(name)),
