@@ -91,7 +91,7 @@ metadata:
     "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
 spec:
   rules:
-  - host: "vps.bell.plus"
+  - host: "bell.plus"
     http:
       paths:
       - path: "/"
@@ -103,7 +103,7 @@ spec:
               number: 8080
   tls:
   - hosts:
-    - "vps.bell.plus"
+    - "bell.plus"
     secretName: bell-cert
 ---
 apiVersion: "batch/v1"

@@ -28,7 +28,7 @@ pub fn stack() -> Stack {
 
   let bell_app =
     app.new("bell")
-    |> app.expose_http2(8080, "vps.bell.plus")
+    |> app.expose_http2(8080, "bell.plus")
     |> app.image("ghcr.io/nicolaschan/bell:v4.12.3")
     |> app.add_storage(
       "/bell/schedules",
