@@ -19,7 +19,7 @@ pub fn stack() -> Stack {
   let schedule_storage = storage.new("schedules", "1G")
 
   let update_schedules =
-    job.new("update_schedules", "alpine/git", "*/5 * * * *", [
+    job.new("update-schedules", "alpine/git", "*/5 * * * *", [
       "/bin/sh",
       "-c",
       "rm -rf /schedules/lost+found; git clone https://github.com/nicolaschan/schedules.git /schedules || (cd /schedules; git pull origin master)",

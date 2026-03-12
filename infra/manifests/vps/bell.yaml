@@ -109,7 +109,7 @@ spec:
 apiVersion: "batch/v1"
 kind: CronJob
 metadata:
-  name: update_schedules
+  name: update-schedules
   namespace: bell
 spec:
   concurrencyPolicy: Forbid
