@@ -10,5 +10,6 @@ resources:
 - "market.yaml"
 - "x3dtictactoe.yaml"
 - "baybridge.yaml"
+- "cert-manager.yaml"
 - "traefik-middlewares.yaml"
 - "cert-manager-issuers.yaml"
