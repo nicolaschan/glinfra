@@ -18,6 +18,10 @@ pub fn config() -> cert_manager.CertManagerConfig {
     "https://acme-v02.api.letsencrypt.org/directory",
     "letsencrypt-prod-account-key",
   ))
+  |> cert_manager.add_issuer(cluster_issuer.new_self_signed(
+    "selfsigned-issuer",
+    "default",
+  ))
   |> cert_manager.add_issuer(cluster_issuer.new_ca(
     "selfsigned-ca-issuer",
     "default",
