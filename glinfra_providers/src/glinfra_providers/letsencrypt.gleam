@@ -1,10 +1,12 @@
 import gleam/list
 import glinfra/blueprint/app
+import glinfra/blueprint/environment
+import glinfra/compiler/stack
 import glinfra/k8s
 import glinfra/k8s/ingress
 
-pub fn plugins() -> List(app.AppPlugin) {
-  [ingress_plugin()]
+pub fn stack_plugin(issuers_resource: environment.Resource) -> stack.StackPlugin {
+  stack.stack_plugin([ingress_plugin()], [issuers_resource])
 }
 
 fn ingress_plugin() -> app.AppPlugin {

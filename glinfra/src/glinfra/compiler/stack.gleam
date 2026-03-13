@@ -21,16 +21,39 @@ import glinfra/k8s/namespace
 import glinfra/k8s/persistent_volume_claim
 import glinfra/k8s/service
 
+pub type StackPlugin {
+  StackPlugin(
+    app_plugins: List(AppPlugin),
+    dependencies: List(environment.Resource),
+  )
+}
+
 pub type Stacks {
-  Stacks(plugins: List(AppPlugin), stacks: List(Stack))
+  Stacks(stack_plugins: List(StackPlugin), stacks: List(Stack))
 }
 
 pub fn stacks() -> Stacks {
-  Stacks(plugins: [], stacks: [])
+  Stacks(stack_plugins: [], stacks: [])
 }
 
 pub fn plugins(s: Stacks, p: List(AppPlugin)) -> Stacks {
-  Stacks(..s, plugins: list.append(s.plugins, p))
+  Stacks(
+    ..s,
+    stack_plugins: list.append(s.stack_plugins, [
+      StackPlugin(app_plugins: p, dependencies: []),
+    ]),
+  )
+}
+
+pub fn stack_plugin(
+  app_plugins: List(AppPlugin),
+  dependencies: List(environment.Resource),
+) -> StackPlugin {
+  StackPlugin(app_plugins:, dependencies:)
+}
+
+pub fn add_stack_plugin(s: Stacks, p: StackPlugin) -> Stacks {
+  Stacks(..s, stack_plugins: list.append(s.stack_plugins, [p]))
 }
 
 pub fn add(s: Stacks, stack: Stack) -> Stacks {
@@ -38,14 +61,29 @@ pub fn add(s: Stacks, stack: Stack) -> Stacks {
 }
 
 pub fn add_all(env: Environment, s: Stacks) -> Environment {
+  let all_app_plugins =
+    list.flat_map(s.stack_plugins, fn(sp) { sp.app_plugins })
+  let all_dependencies =
+    list.flat_map(s.stack_plugins, fn(sp: StackPlugin) { sp.dependencies })
+
   list.fold(list.reverse(s.stacks), env, fn(env, stack) {
     let provider =
       Provider(resources: [
-        Resource(name: stack.name, render: fn(_env) {
-          stack_to_cymbal(stack, s.plugins)
-        }),
+        Resource(
+          name: stack.name,
+          dependencies: all_dependencies,
+          render: fn(_env) { stack_to_cymbal(stack, all_app_plugins) },
+        ),
       ])
     environment.add_provider(env, provider)
+  })
+}
+
+/// Create a standalone Resource from a Stack (without plugins).
+/// Used when a provider needs to pull in a stack as a dependency.
+pub fn stack_to_resource(stack: Stack) -> environment.Resource {
+  Resource(name: stack.name, dependencies: [], render: fn(_env) {
+    stack_to_cymbal(stack, [])
   })
 }
 

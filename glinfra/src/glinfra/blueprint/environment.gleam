@@ -5,7 +5,11 @@ pub type Environment {
 }
 
 pub type Resource {
-  Resource(name: String, render: fn(Environment) -> List(cymbal.Yaml))
+  Resource(
+    name: String,
+    dependencies: List(Resource),
+    render: fn(Environment) -> List(cymbal.Yaml),
+  )
 }
 
 pub type Provider {

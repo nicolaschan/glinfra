@@ -1,9 +1,10 @@
 import glinfra/k8s/certificate
 import glinfra/k8s/cluster_issuer
 import glinfra_providers/cert_manager
+import infra/apps/cert_manager as cert_manager_app
 
 pub fn config() -> cert_manager.CertManagerConfig {
-  cert_manager.config()
+  cert_manager.config(cert_manager_app.stack())
   |> cert_manager.add_issuer(cluster_issuer.new_acme(
     "letsencrypt-staging",
     "default",

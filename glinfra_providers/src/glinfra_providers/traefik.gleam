@@ -2,9 +2,8 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import glinfra/blueprint/app
-import glinfra/blueprint/environment.{
-  type Environment, type Resource, Provider, Resource,
-}
+import glinfra/blueprint/environment.{type Environment, Provider, Resource}
+import glinfra/compiler/stack
 import glinfra/k8s
 import glinfra/k8s/ingress
 import glinfra/k8s/service
@@ -41,27 +40,38 @@ pub fn ingress_middleware(mw: Middleware) -> app.AppPlugin {
   })
 }
 
-pub fn plugins(config: TraefikConfig) -> List(app.AppPlugin) {
-  [service_plugin(), ingress_plugin(config)]
-}
-
-pub fn add(env: Environment, config: TraefikConfig) -> Environment {
-  case resources(config) {
-    [] -> env
-    res -> environment.add_provider(env, Provider(resources: res))
+pub fn stack_plugin(config: TraefikConfig) -> stack.StackPlugin {
+  let deps = case middlewares_resource(config) {
+    Ok(resource) -> [resource]
+    Error(_) -> []
   }
+  stack.stack_plugin([service_plugin(), ingress_plugin(config)], deps)
 }
 
-fn resources(config: TraefikConfig) -> List(Resource) {
+/// Returns the traefik-middlewares Resource if there are any middlewares.
+pub fn middlewares_resource(
+  config: TraefikConfig,
+) -> Result(environment.Resource, Nil) {
   let all_middlewares =
     list.append(config.global_middlewares, config.extra_middlewares)
   case all_middlewares {
-    [] -> []
-    mws -> [
-      Resource(name: "traefik-middlewares", render: fn(_env) {
-        list.map(mws, middleware.to_cymbal)
-      }),
-    ]
+    [] -> Error(Nil)
+    mws ->
+      Ok(
+        Resource(
+          name: "traefik-middlewares",
+          dependencies: [],
+          render: fn(_env) { list.map(mws, middleware.to_cymbal) },
+        ),
+      )
+  }
+}
+
+pub fn add(env: Environment, config: TraefikConfig) -> Environment {
+  case middlewares_resource(config) {
+    Ok(resource) ->
+      environment.add_provider(env, Provider(resources: [resource]))
+    Error(_) -> env
   }
 }
 

@@ -7,7 +7,9 @@ pub fn add(env: Environment) -> Environment {
 }
 
 fn provider() -> environment.Provider {
-  Provider(resources: [Resource(name: "kustomization", render: kustomization)])
+  Provider(resources: [
+    Resource(name: "kustomization", dependencies: [], render: kustomization),
+  ])
 }
 
 fn kustomization(env: Environment) -> List(cymbal.Yaml) {

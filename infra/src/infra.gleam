@@ -3,12 +3,10 @@ import glinfra/compile
 import glinfra/compiler/stack
 import glinfra_providers/cert_manager
 import glinfra_providers/flux_image_update.{FluxImageUpdateConfig}
-import glinfra_providers/kustomize
 import glinfra_providers/letsencrypt
 import glinfra_providers/traefik.{TraefikConfig}
 import infra/apps/baybridge
 import infra/apps/bell
-import infra/apps/cert_manager as cert_manager_app
 import infra/apps/cloudflare_ddns
 import infra/apps/market
 import infra/apps/minecraft
@@ -44,12 +42,14 @@ pub fn main() -> Nil {
       path_prefix: "./apps/monad",
     )
 
+  let cert_manager_config = my_cert_manager.config()
+  let issuers_resource = cert_manager.issuers_resource(cert_manager_config)
+
   let base_stacks =
     stack.stacks()
-    |> stack.plugins(letsencrypt.plugins())
-    |> stack.plugins(traefik.plugins(traefik_config))
-    |> stack.plugins(flux_image_update.plugins(flux_config))
-    |> stack.add(cert_manager_app.stack())
+    |> stack.add_stack_plugin(letsencrypt.stack_plugin(issuers_resource))
+    |> stack.add_stack_plugin(traefik.stack_plugin(traefik_config))
+    |> stack.add_stack_plugin(flux_image_update.stack_plugin(flux_config))
 
   let monad_stacks =
     base_stacks
@@ -69,14 +69,12 @@ pub fn main() -> Nil {
   environment.new("monad")
   |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
-  |> kustomize.add()
   |> stack.add_all(monad_stacks)
-  |> compile.manifest("manifests")
+  |> compile.manifest("manifests", "infra/manifests", "../clusters/monad")
 
   environment.new("vps")
   |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
-  |> kustomize.add()
   |> stack.add_all(vps_stacks)
-  |> compile.manifest("manifests/vps")
+  |> compile.manifest("manifests/vps", "infra/manifests/vps", "../clusters/vps")
 }

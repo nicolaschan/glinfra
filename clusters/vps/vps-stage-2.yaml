@@ -1,0 +1,15 @@
+---
+apiVersion: "kustomize.toolkit.fluxcd.io/v1"
+kind: Kustomization
+metadata:
+  name: vps-stage-2
+  namespace: flux-system
+spec:
+  interval: "1m0s"
+  path: "./infra/manifests/vps/_group-vps-stage-2"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  dependsOn:
+  - name: vps-stage-1
