@@ -114,6 +114,16 @@ pub fn add_env(app: App, name: String, value: String) -> App {
   App(..app, containers: containers)
 }
 
+pub fn add_env_from_secret(app: App, secret: container.SecretEnvRef) -> App {
+  let containers =
+    app.containers |> list.map(container.add_env_from_secret(_, secret))
+  App(..app, containers: containers)
+}
+
+pub fn add_env_from_secret_name(app: App, secret: String) -> App {
+  add_env_from_secret(app, container.SecretEnvRef(secret))
+}
+
 pub fn add_envs(app: App, envs: List(#(String, String))) -> App {
   envs
   |> list.fold(app, fn(app, env) {
