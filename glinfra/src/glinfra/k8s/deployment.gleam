@@ -11,6 +11,11 @@ pub type EnvVar {
   EnvVar(name: String, value: String)
 }
 
+pub type EnvFromSource {
+  SecretEnvFrom(secret_name: String)
+  ConfigMapEnvFrom(config_map_name: String)
+}
+
 pub type VolumeMount {
   VolumeMount(name: String, mount_path: String, read_only: Option(Bool))
 }
@@ -62,6 +67,7 @@ pub type Container {
     args: Option(List(String)),
     ports: List(ContainerPort),
     env: List(EnvVar),
+    env_from: List(EnvFromSource),
     volume_mounts: List(VolumeMount),
     resources: ResourceRequirements,
     lifecycle: Option(Lifecycle),
@@ -206,6 +212,14 @@ fn container_to_cymbal(c: Container) -> cymbal.Yaml {
       ])
   }
 
+  let fields = case c.env_from {
+    [] -> fields
+    env_from ->
+      list.append(fields, [
+        #("envFrom", cymbal.array(list.map(env_from, env_from_to_cymbal))),
+      ])
+  }
+
   let fields = case c.volume_mounts {
     [] -> fields
     mounts ->
@@ -272,6 +286,22 @@ fn env_var_to_cymbal(e: EnvVar) -> cymbal.Yaml {
   ])
 }
 
+fn env_from_to_cymbal(e: EnvFromSource) -> cymbal.Yaml {
+  case e {
+    SecretEnvFrom(secret_name) ->
+      cymbal.block([
+        #("secretRef", cymbal.block([#("name", cymbal.string(secret_name))])),
+      ])
+    ConfigMapEnvFrom(config_map_name) ->
+      cymbal.block([
+        #(
+          "configMapRef",
+          cymbal.block([#("name", cymbal.string(config_map_name))]),
+        ),
+      ])
+  }
+}
+
 fn lifecycle_to_cymbal(l: Lifecycle) -> cymbal.Yaml {
   let fields = case l.post_start {
     Some(handler) -> [#("postStart", lifecycle_handler_to_cymbal(handler))]
@@ -332,6 +362,7 @@ pub fn new(
             args: None,
             ports: [ContainerPort(container_port: port, protocol: Some("TCP"))],
             env: [],
+            env_from: [],
             volume_mounts: [],
             resources: ResourceRequirements(limits: [], requests: []),
             lifecycle: None,

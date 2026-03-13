@@ -289,9 +289,22 @@ fn app_to_deployment(
         })
       let volume_mounts = list.append(pvc_mounts, secret_mounts)
       let env =
-        list.map(list.reverse(c.env), fn(e) {
-          let #(k, v) = e
-          deployment.EnvVar(name: k, value: v)
+        list.flat_map(list.reverse(c.env), fn(e) {
+          case e {
+            container.Literal(key, value) -> [
+              deployment.EnvVar(name: key, value: value),
+            ]
+            _ -> []
+          }
+        })
+      let env_from =
+        list.flat_map(list.reverse(c.env), fn(e) {
+          case e {
+            container.AllFromSecret(secret) -> [
+              deployment.SecretEnvFrom(secret_name: secret.name),
+            ]
+            _ -> []
+          }
         })
       let container_name = case container_count {
         1 -> name
@@ -303,6 +316,7 @@ fn app_to_deployment(
         args: c.args,
         ports: ports,
         env: env,
+        env_from: env_from,
         volume_mounts: volume_mounts,
         resources: deployment.ResourceRequirements(limits: [], requests: []),
         lifecycle: c.lifecycle,

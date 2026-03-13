@@ -27,23 +27,6 @@ spec:
       containers:
       - image: "timothyjmiller/cloudflare-ddns:latest"
         name: cloudflare-ddns
-        env:
-        - name: PUID
-          value: "1000"
-        - name: PGID
-          value: "1000"
-        volumeMounts:
-        - mountPath: "/config"
-          name: cloudflare-ddns-config-volume
-          readOnly: true
-        lifecycle:
-          postStart:
-            exec:
-              command:
-              - "/bin/sh"
-              - -c
-              - "cp /config/config.json /config.json"
-      volumes:
-      - name: cloudflare-ddns-config-volume
-        secret:
-          secretName: cloudflare-ddns-config
+        envFrom:
+        - secretRef:
+            name: cloudflare-ddns-config

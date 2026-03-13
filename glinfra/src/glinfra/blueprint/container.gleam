@@ -7,12 +7,21 @@ pub type SecretVolumeRef {
   SecretVolumeRef(name: String, mount_path: String, read_only: Bool)
 }
 
+pub type SecretEnvRef {
+  SecretEnvRef(name: String)
+}
+
+pub type Env {
+  Literal(key: String, value: String)
+  AllFromSecret(secret: SecretEnvRef)
+}
+
 pub type Container {
   Container(
     image: Image,
     args: Option(List(String)),
     storage: List(#(String, StorageRef)),
-    env: List(#(String, String)),
+    env: List(Env),
     secret_volumes: List(SecretVolumeRef),
     lifecycle: Option(deployment.Lifecycle),
   )
@@ -56,7 +65,7 @@ pub fn add_storage(
 }
 
 pub fn add_env(container: Container, name: String, value: String) -> Container {
-  Container(..container, env: [#(name, value), ..container.env])
+  Container(..container, env: [Literal(name, value), ..container.env])
 }
 
 pub fn secret_volume(secret_name: String, mount_path: String) -> SecretVolumeRef {
@@ -72,6 +81,10 @@ pub fn add_secret_volume(
   ref: SecretVolumeRef,
 ) -> Container {
   Container(..container, secret_volumes: [ref, ..container.secret_volumes])
+}
+
+pub fn add_env_from_secret(container: Container, ref: SecretEnvRef) -> Container {
+  Container(..container, env: [AllFromSecret(ref), ..container.env])
 }
 
 pub fn with_lifecycle(

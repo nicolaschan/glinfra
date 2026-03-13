@@ -9,15 +9,9 @@ pub fn stack() -> Stack {
     |> app.with_strategy(deployment.Recreate)
     |> app.add_container(
       container.new("timothyjmiller/cloudflare-ddns:latest")
-      |> container.add_env("PUID", "1000")
-      |> container.add_env("PGID", "1000")
-      |> container.add_secret_volume(container.secret_volume(
+      |> container.add_env_from_secret(container.SecretEnvRef(
         "cloudflare-ddns-config",
-        "/config",
-      ))
-      |> container.post_start_exec([
-        "/bin/sh", "-c", "cp /config/config.json /config.json",
-      ]),
+      )),
     )
 
   stack.new("cloudflare-ddns")
