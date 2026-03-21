@@ -6,7 +6,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: "1m0s"
-  path: "./infra/manifests/vps/_group-vps-stage-2"
+  path: "./manifests/vps/_group-vps-stage-2"
   prune: true
   sourceRef:
     kind: GitRepository

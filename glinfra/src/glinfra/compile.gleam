@@ -21,24 +21,22 @@ pub type ResourceGroup {
   ResourceGroup(level: Int, resources: List(RenderedResource))
 }
 
-/// Compile an environment's manifests as flat YAML files under output_dir.
-/// Each resource becomes a single file: output_dir/<name>.yaml.
+/// Compile an environment's manifests as flat YAML files under manifests_path.
+/// Each resource becomes a single file: manifests_path/<name>.yaml.
 /// Resources are topologically sorted into groups, and one FluxCD
-/// Kustomization CRD is generated per group under cluster_dir.
+/// Kustomization CRD is generated per group under cluster_path.
 /// Each group gets a _group-<name>/ directory with a kustomization.yaml
 /// that references the flat resource files.
 ///
-/// - output_dir: filesystem path where resource YAML files are written
-///   (relative to the working directory, e.g. "manifests/vps")
-/// - manifests_repo_path: repo-root-relative path used in the FluxCD
-///   Kustomization spec.path field (e.g. "infra/manifests/vps")
-/// - cluster_dir: filesystem path where FluxCD Kustomization CRDs are written
-///   (e.g. "../clusters/vps" to reach the repo-root clusters/ dir)
+/// Both paths are relative to the repository root:
+/// - manifests_path: where resource YAML files are written
+///   (e.g. "manifests/vps")
+/// - cluster_path: where FluxCD Kustomization CRDs are written
+///   (e.g. "clusters/vps")
 pub fn manifest(
   env: Environment,
-  output_dir: String,
-  manifests_repo_path: String,
-  cluster_dir: String,
+  manifests_path: String,
+  cluster_path: String,
 ) -> Nil {
   let resources =
     env
@@ -49,13 +47,18 @@ pub fn manifest(
   let resources = list.filter(resources, fn(r) { r.name != "kustomization" })
 
   // Write each resource as a flat YAML file
-  write_resource_files(resources, output_dir)
+  write_resource_files(resources, repo_path_to_fs(manifests_path))
 
   // Group resources by topological level
   let groups = topological_group(resources)
 
   // Write FluxCD Kustomization CRDs under the cluster dir (one per group)
-  write_flux_kustomizations(groups, manifests_repo_path, cluster_dir, env.name)
+  write_flux_kustomizations(
+    groups,
+    manifests_path,
+    repo_path_to_fs(cluster_path),
+    env.name,
+  )
 
   Nil
 }
@@ -292,12 +295,9 @@ fn write_flux_kustomizations(
 }
 
 /// Convert a repo-root-relative path to a filesystem path (from the infra/ cwd).
-/// e.g. "infra/manifests/vps/_group-foo" -> "manifests/vps/_group-foo"
+/// e.g. "manifests/vps/_group-foo" -> "../manifests/vps/_group-foo"
 fn repo_path_to_fs(repo_path: String) -> String {
-  case string.starts_with(repo_path, "infra/") {
-    True -> string.drop_start(repo_path, 6)
-    False -> repo_path
-  }
+  "../" <> repo_path
 }
 
 fn merge_resources(resources: List(RenderedResource)) -> List(RenderedResource) {

@@ -70,11 +70,11 @@ pub fn main() -> Nil {
   |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
   |> stack.add_all(monad_stacks)
-  |> compile.manifest("manifests", "infra/manifests", "../clusters/monad")
+  |> compile.manifest("manifests/monad", "clusters/monad")
 
   environment.new("vps")
   |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
   |> stack.add_all(vps_stacks)
-  |> compile.manifest("manifests/vps", "infra/manifests/vps", "../clusters/vps")
+  |> compile.manifest("manifests/vps", "clusters/vps")
 }
