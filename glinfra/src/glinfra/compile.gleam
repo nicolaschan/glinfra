@@ -2,8 +2,10 @@ import cymbal
 import gleam/int
 import gleam/io
 import gleam/list
+import gleam/option.{type Option}
 import gleam/string
 import glinfra/blueprint/environment.{type Environment}
+import glinfra/versions_configmap.{type VersionEntry}
 import simplifile
 
 /// A rendered resource with its name, direct dependency names, and YAML content
@@ -19,6 +21,11 @@ pub type RenderedResource {
 /// All resources in a group can be deployed in parallel.
 pub type ResourceGroup {
   ResourceGroup(level: Int, resources: List(RenderedResource))
+}
+
+/// Configuration for version substitution via ConfigMap
+pub type VersionsConfig {
+  VersionsConfig(configmap_name: String, entries: List(VersionEntry))
 }
 
 /// Compile an environment's manifests as flat YAML files under manifests_path.
@@ -37,6 +44,7 @@ pub fn manifest(
   env: Environment,
   manifests_path: String,
   cluster_path: String,
+  versions: Option(VersionsConfig),
 ) -> Nil {
   let resources =
     env
@@ -49,6 +57,23 @@ pub fn manifest(
   // Write each resource as a flat YAML file
   write_resource_files(resources, repo_path_to_fs(manifests_path))
 
+  // Write versions ConfigMap if configured (reads existing to prevent churn)
+  case versions {
+    option.Some(vc) -> {
+      let configmap_path = repo_path_to_fs(manifests_path) <> "/versions.yaml"
+      let existing = versions_configmap.read_existing(configmap_path)
+      let merged_entries =
+        versions_configmap.merge_with_existing(vc.entries, existing)
+      let configmap_yaml =
+        versions_configmap.generate(vc.configmap_name, merged_entries)
+      case simplifile.write(to: configmap_path, contents: configmap_yaml) {
+        Ok(Nil) -> io.print_error("Wrote " <> configmap_path)
+        Error(_) -> io.print_error("Error: failed to write " <> configmap_path)
+      }
+    }
+    option.None -> Nil
+  }
+
   // Group resources by topological level
   let groups = topological_group(resources)
 
@@ -58,6 +83,7 @@ pub fn manifest(
     manifests_path,
     repo_path_to_fs(cluster_path),
     env.name,
+    versions,
   )
 
   Nil
@@ -184,6 +210,7 @@ fn write_flux_kustomizations(
   manifests_repo_path: String,
   cluster_dir: String,
   env_name: String,
+  versions: Option(VersionsConfig),
 ) -> Nil {
   let _ = simplifile.create_directory_all(cluster_dir)
 
@@ -225,6 +252,11 @@ fn write_flux_kustomizations(
       let group_kustomization_fs_dir = repo_path_to_fs(group_kustomization_dir)
       let _ = simplifile.create_directory_all(group_kustomization_fs_dir)
 
+      let extra_resources = case versions, group.level {
+        option.Some(_), 0 -> [cymbal.string("../versions.yaml")]
+        _, _ -> []
+      }
+
       let kustomization_yaml =
         cymbal.encode(
           cymbal.block([
@@ -232,11 +264,12 @@ fn write_flux_kustomizations(
             #("kind", cymbal.string("Kustomization")),
             #(
               "resources",
-              cymbal.array(
+              cymbal.array(list.append(
                 list.map(resource_names, fn(name) {
                   cymbal.string("../" <> name <> ".yaml")
                 }),
-              ),
+                extra_resources,
+              )),
             ),
           ]),
         )
@@ -269,6 +302,28 @@ fn write_flux_kustomizations(
         ],
         depends_on_block,
       )
+
+    let post_build_block = case versions {
+      option.Some(vc) -> [
+        #(
+          "postBuild",
+          cymbal.block([
+            #(
+              "substituteFrom",
+              cymbal.array([
+                cymbal.block([
+                  #("kind", cymbal.string("ConfigMap")),
+                  #("name", cymbal.string(vc.configmap_name)),
+                ]),
+              ]),
+            ),
+          ]),
+        ),
+      ]
+      option.None -> []
+    }
+
+    let spec_fields = list.append(spec_fields, post_build_block)
 
     let yaml =
       cymbal.encode(
