@@ -76,7 +76,7 @@ pub fn manifest(
   let groups = topological_group(resources)
 
   // Write FluxCD Kustomization CRDs under the cluster dir (one per group)
-  let kustomization_results =
+  let #(group_kustomization_results, flux_crd_results) =
     write_flux_kustomizations(
       groups,
       manifests_path,
@@ -86,8 +86,14 @@ pub fn manifest(
     )
 
   // Collect all file results and display summary
+  // Order: cluster CRDs first, then manifests (resources, versions, group kustomizations)
   let all_results =
-    list.flatten([resource_results, versions_results, kustomization_results])
+    list.flatten([
+      flux_crd_results,
+      resource_results,
+      versions_results,
+      group_kustomization_results,
+    ])
   output.display(all_results)
 }
 
@@ -210,134 +216,140 @@ fn write_flux_kustomizations(
   cluster_dir: String,
   env_name: String,
   versions: Option(VersionsConfig),
-) -> List(output.FileResult) {
+) -> #(List(output.FileResult), List(output.FileResult)) {
   let _ = simplifile.create_directory_all(cluster_dir)
 
-  list.flat_map(groups, fn(group) {
-    let group_name = case group.level {
-      0 -> env_name <> "-base"
-      n -> env_name <> "-stage-" <> int.to_string(n)
-    }
-    let filename = group_name <> ".yaml"
-
-    let resource_names = list.map(group.resources, fn(r) { r.name })
-
-    // dependsOn: the previous level's group (if not level 0)
-    let depends_on_block = case group.level {
-      0 -> []
-      _ -> {
-        let prev_group_name = case group.level - 1 {
-          0 -> env_name <> "-base"
-          n -> env_name <> "-stage-" <> int.to_string(n)
-        }
-        [
-          #(
-            "dependsOn",
-            cymbal.array([
-              cymbal.block([
-                #("name", cymbal.string(prev_group_name)),
-              ]),
-            ]),
-          ),
-        ]
+  let pairs =
+    list.map(groups, fn(group) {
+      let group_name = case group.level {
+        0 -> env_name <> "-base"
+        n -> env_name <> "-stage-" <> int.to_string(n)
       }
-    }
+      let filename = group_name <> ".yaml"
 
-    // Compute the flux path and write the group kustomization file
-    let #(flux_path, kustomization_result) = {
-      let group_kustomization_dir =
-        manifests_repo_path <> "/_group-" <> group_name
-      let group_kustomization_fs_dir = repo_path_to_fs(group_kustomization_dir)
-      let _ = simplifile.create_directory_all(group_kustomization_fs_dir)
+      let resource_names = list.map(group.resources, fn(r) { r.name })
 
-      let extra_resources = case versions, group.level {
-        option.Some(_), 0 -> [cymbal.string("../versions.yaml")]
-        _, _ -> []
-      }
-
-      let kustomization_yaml =
-        cymbal.encode(
-          cymbal.block([
-            #("apiVersion", cymbal.string("kustomize.config.k8s.io/v1beta1")),
-            #("kind", cymbal.string("Kustomization")),
+      // dependsOn: the previous level's group (if not level 0)
+      let depends_on_block = case group.level {
+        0 -> []
+        _ -> {
+          let prev_group_name = case group.level - 1 {
+            0 -> env_name <> "-base"
+            n -> env_name <> "-stage-" <> int.to_string(n)
+          }
+          [
             #(
-              "resources",
-              cymbal.array(list.append(
-                list.map(resource_names, fn(name) {
-                  cymbal.string("../" <> name <> ".yaml")
-                }),
-                extra_resources,
-              )),
-            ),
-          ]),
-        )
-      let kustomization_path =
-        group_kustomization_fs_dir <> "/kustomization.yaml"
-      let result = output.smart_write(kustomization_path, kustomization_yaml)
-
-      #("./" <> group_kustomization_dir, result)
-    }
-
-    let spec_fields =
-      list.append(
-        [
-          #("interval", cymbal.string("1m0s")),
-          #("path", cymbal.string(flux_path)),
-          #("prune", cymbal.bool(True)),
-          #(
-            "sourceRef",
-            cymbal.block([
-              #("kind", cymbal.string("GitRepository")),
-              #("name", cymbal.string("flux-system")),
-            ]),
-          ),
-        ],
-        depends_on_block,
-      )
-
-    let post_build_block = case versions {
-      option.Some(vc) -> [
-        #(
-          "postBuild",
-          cymbal.block([
-            #(
-              "substituteFrom",
+              "dependsOn",
               cymbal.array([
                 cymbal.block([
-                  #("kind", cymbal.string("ConfigMap")),
-                  #("name", cymbal.string(vc.configmap_name)),
+                  #("name", cymbal.string(prev_group_name)),
                 ]),
               ]),
             ),
-          ]),
-        ),
-      ]
-      option.None -> []
-    }
+          ]
+        }
+      }
 
-    let spec_fields = list.append(spec_fields, post_build_block)
+      // Compute the flux path and write the group kustomization file
+      let #(flux_path, kustomization_result) = {
+        let group_kustomization_dir =
+          manifests_repo_path <> "/_group-" <> group_name
+        let group_kustomization_fs_dir =
+          repo_path_to_fs(group_kustomization_dir)
+        let _ = simplifile.create_directory_all(group_kustomization_fs_dir)
 
-    let yaml =
-      cymbal.encode(
-        cymbal.block([
-          #("apiVersion", cymbal.string("kustomize.toolkit.fluxcd.io/v1")),
-          #("kind", cymbal.string("Kustomization")),
-          #(
-            "metadata",
+        let extra_resources = case versions, group.level {
+          option.Some(_), 0 -> [cymbal.string("../versions.yaml")]
+          _, _ -> []
+        }
+
+        let kustomization_yaml =
+          cymbal.encode(
             cymbal.block([
-              #("name", cymbal.string(group_name)),
-              #("namespace", cymbal.string("flux-system")),
+              #("apiVersion", cymbal.string("kustomize.config.k8s.io/v1beta1")),
+              #("kind", cymbal.string("Kustomization")),
+              #(
+                "resources",
+                cymbal.array(list.append(
+                  list.map(resource_names, fn(name) {
+                    cymbal.string("../" <> name <> ".yaml")
+                  }),
+                  extra_resources,
+                )),
+              ),
+            ]),
+          )
+        let kustomization_path =
+          group_kustomization_fs_dir <> "/kustomization.yaml"
+        let result = output.smart_write(kustomization_path, kustomization_yaml)
+
+        #("./" <> group_kustomization_dir, result)
+      }
+
+      let spec_fields =
+        list.append(
+          [
+            #("interval", cymbal.string("1m0s")),
+            #("path", cymbal.string(flux_path)),
+            #("prune", cymbal.bool(True)),
+            #(
+              "sourceRef",
+              cymbal.block([
+                #("kind", cymbal.string("GitRepository")),
+                #("name", cymbal.string("flux-system")),
+              ]),
+            ),
+          ],
+          depends_on_block,
+        )
+
+      let post_build_block = case versions {
+        option.Some(vc) -> [
+          #(
+            "postBuild",
+            cymbal.block([
+              #(
+                "substituteFrom",
+                cymbal.array([
+                  cymbal.block([
+                    #("kind", cymbal.string("ConfigMap")),
+                    #("name", cymbal.string(vc.configmap_name)),
+                  ]),
+                ]),
+              ),
             ]),
           ),
-          #("spec", cymbal.block(spec_fields)),
-        ]),
-      )
+        ]
+        option.None -> []
+      }
 
-    let path = cluster_dir <> "/" <> filename
-    let flux_result = output.smart_write(path, yaml)
+      let spec_fields = list.append(spec_fields, post_build_block)
 
-    [kustomization_result, flux_result]
-  })
+      let yaml =
+        cymbal.encode(
+          cymbal.block([
+            #("apiVersion", cymbal.string("kustomize.toolkit.fluxcd.io/v1")),
+            #("kind", cymbal.string("Kustomization")),
+            #(
+              "metadata",
+              cymbal.block([
+                #("name", cymbal.string(group_name)),
+                #("namespace", cymbal.string("flux-system")),
+              ]),
+            ),
+            #("spec", cymbal.block(spec_fields)),
+          ]),
+        )
+
+      let path = cluster_dir <> "/" <> filename
+      let flux_result = output.smart_write(path, yaml)
+
+      #(kustomization_result, flux_result)
+    })
+
+  let group_kustomization_results = list.map(pairs, fn(p) { p.0 })
+  let flux_crd_results = list.map(pairs, fn(p) { p.1 })
+  #(group_kustomization_results, flux_crd_results)
 }
 
 /// Convert a repo-root-relative path to a filesystem path (from the infra/ cwd).
