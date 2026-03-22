@@ -25,7 +25,7 @@ spec:
         app: sunset-relay
     spec:
       containers:
-      - image: "ghcr.io/nicolaschan/sunset-relay:latest"
+      - image: "${GHCR_IO_NICOLASCHAN_SUNSET_RELAY_IMAGE}"
         name: sunset-relay
         args:
         - --identity
@@ -126,7 +126,7 @@ spec:
     name: nicolaschan-infra
     namespace: default
   update:
-    path: "./apps/monad/sunset-relay"
+    path: "./manifests/monad"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim

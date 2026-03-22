@@ -13,3 +13,7 @@ spec:
     name: flux-system
   dependsOn:
   - name: monad-stage-1
+  postBuild:
+    substituteFrom:
+    - kind: ConfigMap
+      name: image-versions

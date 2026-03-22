@@ -3,15 +3,13 @@ import glinfra/blueprint/image
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage
 
-const version_file_path = "src/infra/apps/sunset-relay-version.yaml"
-
 const args = ["--identity", "/data/identity.key"]
 
 pub fn stack() -> Stack {
   let relay_storage = storage.new("relay-data", "1G")
 
   let relay_image =
-    image.from_version_file(version_file_path)
+    image.new("ghcr.io/nicolaschan/sunset-relay", "latest")
     |> image.with_update_pattern("^master-[0-9]+$")
 
   let relay_app =

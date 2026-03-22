@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: image-versions
+  namespace: flux-system
+data:
+  GHCR_IO_NICOLASCHAN_BAYBRIDGE_IMAGE: "ghcr.io/nicolaschan/baybridge:master-20296814492" # {"$imagepolicy": "baybridge:ghcr-io-nicolaschan-baybridge"}
+  GHCR_IO_NICOLASCHAN_SUNSET_RELAY_IMAGE: "ghcr.io/nicolaschan/sunset-relay:latest" # {"$imagepolicy": "sunset-relay:ghcr-io-nicolaschan-sunset-relay"}

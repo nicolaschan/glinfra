@@ -1,5 +1,7 @@
+import gleam/list
+import gleam/option.{None, Some}
 import glinfra/blueprint/environment
-import glinfra/compile
+import glinfra/compile.{VersionsConfig}
 import glinfra/compiler/stack
 import glinfra_providers/cert_manager
 import glinfra_providers/flux_image_update.{FluxImageUpdateConfig}
@@ -39,7 +41,7 @@ pub fn main() -> Nil {
       branch: "master",
       author_name: "fluxcdbot",
       author_email: "fluxcdbot@nicolaschan.com",
-      path_prefix: "./apps/monad",
+      path_prefix: "./manifests/monad",
     )
 
   let cert_manager_config = my_cert_manager.config()
@@ -51,16 +53,32 @@ pub fn main() -> Nil {
     |> stack.add_stack_plugin(traefik.stack_plugin(traefik_config))
     |> stack.add_stack_plugin(flux_image_update.stack_plugin(flux_config))
 
+  // Monad stacks as a list (needed for both building Stacks and collecting entries)
+  let monad_app_stacks = [
+    baybridge.stack(),
+    x3dtictactoe.stack(),
+    market.stack(),
+    mines.stack(),
+    ollama.stack(),
+    minecraft.stack(),
+    cloudflare_ddns.stack(),
+    sunset_relay.stack(),
+  ]
+
   let monad_stacks =
-    base_stacks
-    |> stack.add(baybridge.stack())
-    |> stack.add(x3dtictactoe.stack())
-    |> stack.add(market.stack())
-    |> stack.add(mines.stack())
-    |> stack.add(ollama.stack())
-    |> stack.add(minecraft.stack())
-    |> stack.add(cloudflare_ddns.stack())
-    |> stack.add(sunset_relay.stack())
+    list.fold(monad_app_stacks, base_stacks, fn(s, app_stack) {
+      stack.add(s, app_stack)
+    })
+
+  // Collect version entries from all monad stacks
+  let monad_version_entries =
+    list.flat_map(monad_app_stacks, flux_image_update.collect_version_entries)
+
+  let monad_versions = case monad_version_entries {
+    [] -> None
+    entries ->
+      Some(VersionsConfig(configmap_name: "image-versions", entries: entries))
+  }
 
   let vps_stacks =
     base_stacks
@@ -70,11 +88,11 @@ pub fn main() -> Nil {
   |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
   |> stack.add_all(monad_stacks)
-  |> compile.manifest("manifests/monad", "clusters/monad")
+  |> compile.manifest("manifests/monad", "clusters/monad", monad_versions)
 
   environment.new("vps")
   |> cert_manager.add(my_cert_manager.config())
   |> traefik.add(traefik_config)
   |> stack.add_all(vps_stacks)
-  |> compile.manifest("manifests/vps", "clusters/vps")
+  |> compile.manifest("manifests/vps", "clusters/vps", None)
 }

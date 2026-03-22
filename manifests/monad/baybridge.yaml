@@ -23,7 +23,7 @@ spec:
         app: baybridge
     spec:
       containers:
-      - image: "ghcr.io/nicolaschan/baybridge:master-20296814492"
+      - image: "${GHCR_IO_NICOLASCHAN_BAYBRIDGE_IMAGE}"
         name: baybridge
         args:
         - serve
@@ -120,4 +120,4 @@ spec:
     name: nicolaschan-infra
     namespace: default
   update:
-    path: "./apps/monad/baybridge"
+    path: "./manifests/monad"

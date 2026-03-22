@@ -2,8 +2,6 @@ import glinfra/blueprint/app
 import glinfra/blueprint/image
 import glinfra/blueprint/stack.{type Stack}
 
-const version_file_path = "src/infra/apps/baybridge-version.yaml"
-
 const args = [
   "serve",
   "--peer",
@@ -12,7 +10,7 @@ const args = [
 
 pub fn stack() -> Stack {
   let baybridge_image =
-    image.from_version_file(version_file_path)
+    image.new("ghcr.io/nicolaschan/baybridge", "master-20296814492")
     |> image.with_update_pattern("^master-[0-9]+$")
 
   app.new("baybridge")
