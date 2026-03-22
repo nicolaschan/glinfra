@@ -18,7 +18,7 @@ pub type VersionEntry {
 
 /// Build a VersionEntry from an Image and its namespace.
 pub fn entry_from_image(img: Image, namespace: String) -> VersionEntry {
-  let slug = image_name_to_slug(img.name)
+  let slug = image.name_to_slug(img.name)
   VersionEntry(
     variable: image.variable_name(img),
     image_ref: image.to_ref(img),
@@ -97,10 +97,4 @@ pub fn merge_with_existing(
       Error(_) -> entry
     }
   })
-}
-
-fn image_name_to_slug(name: String) -> String {
-  name
-  |> string.replace("/", "-")
-  |> string.replace(".", "-")
 }

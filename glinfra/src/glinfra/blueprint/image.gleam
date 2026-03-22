@@ -34,5 +34,13 @@ pub fn variable_name(img: Image) -> String {
   |> string.replace(".", "_")
   |> string.replace("-", "_")
   |> string.uppercase
-  |> fn(s) { s <> "_IMAGE" }
+  |> string.append("_IMAGE")
+}
+
+/// Convert an image name to a slug suitable for Kubernetes resource names.
+/// e.g. "ghcr.io/nicolaschan/baybridge" -> "ghcr-io-nicolaschan-baybridge"
+pub fn name_to_slug(name: String) -> String {
+  name
+  |> string.replace("/", "-")
+  |> string.replace(".", "-")
 }

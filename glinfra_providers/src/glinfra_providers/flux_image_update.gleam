@@ -1,7 +1,6 @@
 import cymbal
 import gleam/list
 import gleam/option.{None, Some}
-import gleam/string
 import glinfra/blueprint/app.{type StackApp}
 import glinfra/blueprint/container
 import glinfra/blueprint/image.{type Image}
@@ -63,7 +62,7 @@ fn image_to_update_cymbal(
   config: FluxImageUpdateConfig,
 ) -> List(cymbal.Yaml) {
   let assert Some(update) = img.update
-  let slug = image_name_to_slug(img.name)
+  let slug = image.name_to_slug(img.name)
   let repo_name = slug <> "-repo"
   let policy_name = slug
   let automation_name = slug <> "-update"
@@ -133,12 +132,6 @@ fn image_to_update_cymbal(
     image_policy.to_cymbal(policy),
     image_update_automation.to_cymbal(automation),
   ]
-}
-
-fn image_name_to_slug(name: String) -> String {
-  name
-  |> string.replace("/", "-")
-  |> string.replace(".", "-")
 }
 
 /// Collect VersionEntry records from a stack's apps.
