@@ -5,11 +5,13 @@ import gleam/string
 import glinfra/blueprint/app.{type StackApp}
 import glinfra/blueprint/container
 import glinfra/blueprint/image.{type Image}
+import glinfra/blueprint/stack as blueprint_stack
 import glinfra/compiler/stack
 import glinfra/k8s
 import glinfra/k8s/image_policy
 import glinfra/k8s/image_repository
 import glinfra/k8s/image_update_automation
+import glinfra/versions_configmap.{type VersionEntry}
 
 pub type FluxImageUpdateConfig {
   FluxImageUpdateConfig(
@@ -65,7 +67,7 @@ fn image_to_update_cymbal(
   let repo_name = slug <> "-repo"
   let policy_name = slug
   let automation_name = slug <> "-update"
-  let update_path = config.path_prefix <> "/" <> app_name
+  let update_path = config.path_prefix
 
   let repo =
     image_repository.ImageRepository(
@@ -137,4 +139,23 @@ fn image_name_to_slug(name: String) -> String {
   name
   |> string.replace("/", "-")
   |> string.replace(".", "-")
+}
+
+/// Collect VersionEntry records from a stack's apps.
+/// Returns entries for images that have update automation.
+pub fn collect_version_entries(s: blueprint_stack.Stack) -> List(VersionEntry) {
+  list.flat_map(s.apps, fn(application) {
+    let ns = s.name
+    case application {
+      app.ContainerApp(app.App(_name, _port, containers, _plugins, _strategy)) ->
+        containers
+        |> list.filter_map(fn(c: container.Container) {
+          case c.image.update {
+            Some(_) -> Ok(versions_configmap.entry_from_image(c.image, ns))
+            None -> Error(Nil)
+          }
+        })
+      app.HelmChartApp(_) -> []
+    }
+  })
 }
