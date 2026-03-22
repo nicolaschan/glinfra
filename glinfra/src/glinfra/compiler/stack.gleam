@@ -8,6 +8,7 @@ import glinfra/blueprint/app.{
 }
 import glinfra/blueprint/container
 import glinfra/blueprint/environment.{type Environment, Provider, Resource}
+import glinfra/blueprint/image
 import glinfra/blueprint/job
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage.{type Storage}
@@ -297,7 +298,10 @@ fn app_to_deployment(
   let container_count = list.length(app_containers)
   let containers =
     list.index_map(app_containers, fn(c, i) {
-      let image_ref = c.image.name <> ":" <> c.image.tag
+      let image_ref = case c.image.update {
+        Some(_) -> "${" <> image.variable_name(c.image) <> "}"
+        None -> c.image.name <> ":" <> c.image.tag
+      }
       let ports =
         list.map(port, fn(p) {
           deployment.ContainerPort(
