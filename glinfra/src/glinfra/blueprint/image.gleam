@@ -33,3 +33,16 @@ pub fn from_version_file(path: String) -> Image {
 pub fn with_update_pattern(image: Image, pattern: String) -> Image {
   Image(..image, update: Some(ImageUpdate(pattern)))
 }
+
+pub fn to_ref(img: Image) -> String {
+  img.name <> ":" <> img.tag
+}
+
+pub fn variable_name(img: Image) -> String {
+  img.name
+  |> string.replace("/", "_")
+  |> string.replace(".", "_")
+  |> string.replace("-", "_")
+  |> string.uppercase
+  |> fn(s) { s <> "_IMAGE" }
+}
