@@ -134,7 +134,7 @@ fn group_by_directory(
 ) -> List(#(String, List(FileResult))) {
   list.fold(results, [], fn(groups, result) {
     let path = result_path(result)
-    let dir = dirname(path)
+    let dir = dirname(path) |> strip_dotdot
     case list.key_find(groups, dir) {
       Ok(existing) -> {
         list.map(groups, fn(g) {
@@ -180,6 +180,15 @@ fn dirname(path: String) -> String {
         _ -> string.join(without_last, "/")
       }
     }
+  }
+}
+
+/// Strip leading "../" segments from a path for cleaner display.
+/// e.g. "../manifests/monad" -> "manifests/monad"
+fn strip_dotdot(path: String) -> String {
+  case string.starts_with(path, "../") {
+    True -> strip_dotdot(string.drop_start(path, 3))
+    False -> path
   }
 }
 
