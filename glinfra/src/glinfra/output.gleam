@@ -1,6 +1,7 @@
 import gleam/int
 import gleam/io
 import gleam/list
+import gleam/order
 import gleam/string
 import simplifile
 
@@ -29,7 +30,7 @@ pub type FileResult {
 /// Groups files by their parent directory and shows a summary line per group,
 /// listing changed files underneath. Errors are collected and shown at the end.
 pub fn display(results: List(FileResult)) -> Nil {
-  let groups = group_by_directory(results)
+  let groups = group_by_directory(results) |> sort_by_cluster
   let errors = collect_errors(results)
 
   // Print each directory group
@@ -147,6 +148,40 @@ fn group_by_directory(
       Error(_) -> list.append(groups, [#(dir, [result])])
     }
   })
+}
+
+/// Sort directory groups so they're grouped by cluster name, with clusters/
+/// before manifests/ within each cluster group.
+/// e.g. clusters/monad, manifests/monad, manifests/monad/_group-*, clusters/vps, ...
+fn sort_by_cluster(
+  groups: List(#(String, List(FileResult))),
+) -> List(#(String, List(FileResult))) {
+  list.sort(groups, fn(a, b) {
+    let a_cluster = cluster_name(a.0)
+    let b_cluster = cluster_name(b.0)
+    case string.compare(a_cluster, b_cluster) {
+      order.Eq -> {
+        // Within the same cluster: clusters/ before manifests/
+        let a_is_cluster = string.starts_with(a.0, "clusters/")
+        let b_is_cluster = string.starts_with(b.0, "clusters/")
+        case a_is_cluster, b_is_cluster {
+          True, False -> order.Lt
+          False, True -> order.Gt
+          _, _ -> string.compare(a.0, b.0)
+        }
+      }
+      other -> other
+    }
+  })
+}
+
+/// Extract the cluster name from a directory path.
+/// e.g. "clusters/monad" -> "monad", "manifests/monad/_group-foo" -> "monad"
+fn cluster_name(dir: String) -> String {
+  case string.split(dir, "/") {
+    [_, name, ..] -> name
+    _ -> dir
+  }
 }
 
 /// Collect all Error results
