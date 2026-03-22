@@ -1,10 +1,10 @@
 import cymbal
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{type Option}
 import gleam/string
 import glinfra/blueprint/environment.{type Environment}
+import glinfra/output
 import glinfra/versions_configmap.{type VersionEntry}
 import simplifile
 
@@ -55,10 +55,11 @@ pub fn manifest(
   let resources = list.filter(resources, fn(r) { r.name != "kustomization" })
 
   // Write each resource as a flat YAML file
-  write_resource_files(resources, repo_path_to_fs(manifests_path))
+  let resource_results =
+    write_resource_files(resources, repo_path_to_fs(manifests_path))
 
   // Write versions ConfigMap if configured (reads existing to prevent churn)
-  case versions {
+  let versions_results = case versions {
     option.Some(vc) -> {
       let configmap_path = repo_path_to_fs(manifests_path) <> "/versions.yaml"
       let existing = versions_configmap.read_existing(configmap_path)
@@ -66,46 +67,44 @@ pub fn manifest(
         versions_configmap.merge_with_existing(vc.entries, existing)
       let configmap_yaml =
         versions_configmap.generate(vc.configmap_name, merged_entries)
-      case simplifile.write(to: configmap_path, contents: configmap_yaml) {
-        Ok(Nil) -> io.print_error("Wrote " <> configmap_path)
-        Error(_) -> io.print_error("Error: failed to write " <> configmap_path)
-      }
+      [output.smart_write(configmap_path, configmap_yaml)]
     }
-    option.None -> Nil
+    option.None -> []
   }
 
   // Group resources by topological level
   let groups = topological_group(resources)
 
   // Write FluxCD Kustomization CRDs under the cluster dir (one per group)
-  write_flux_kustomizations(
-    groups,
-    manifests_path,
-    repo_path_to_fs(cluster_path),
-    env.name,
-    versions,
-  )
+  let kustomization_results =
+    write_flux_kustomizations(
+      groups,
+      manifests_path,
+      repo_path_to_fs(cluster_path),
+      env.name,
+      versions,
+    )
 
-  Nil
+  // Collect all file results and display summary
+  let all_results =
+    list.flatten([resource_results, versions_results, kustomization_results])
+  output.display(all_results)
 }
 
 /// Write each resource as a flat YAML file: output_dir/<name>.yaml
+/// Returns a FileResult for each file indicating changed/unchanged/error.
 fn write_resource_files(
   resources: List(RenderedResource),
   output_dir: String,
-) -> Nil {
+) -> List(output.FileResult) {
   let _ = simplifile.create_directory_all(output_dir)
 
-  list.each(resources, fn(resource) {
+  list.map(resources, fn(resource) {
     let yaml =
       list.map(resource.yamls, cymbal.encode)
       |> string.join("")
     let path = output_dir <> "/" <> resource.name <> ".yaml"
-    io.println(yaml)
-    case simplifile.write(to: path, contents: yaml) {
-      Ok(Nil) -> io.print_error("Wrote " <> path)
-      Error(_) -> io.print_error("Error: failed to write " <> path)
-    }
+    output.smart_write(path, yaml)
   })
 }
 
@@ -211,10 +210,10 @@ fn write_flux_kustomizations(
   cluster_dir: String,
   env_name: String,
   versions: Option(VersionsConfig),
-) -> Nil {
+) -> List(output.FileResult) {
   let _ = simplifile.create_directory_all(cluster_dir)
 
-  list.each(groups, fn(group) {
+  list.flat_map(groups, fn(group) {
     let group_name = case group.level {
       0 -> env_name <> "-base"
       n -> env_name <> "-stage-" <> int.to_string(n)
@@ -244,9 +243,8 @@ fn write_flux_kustomizations(
       }
     }
 
-    // Every stage gets a _group-* directory with a kustomization.yaml
-    // that references the flat resource YAML files
-    let flux_path = {
+    // Compute the flux path and write the group kustomization file
+    let #(flux_path, kustomization_result) = {
       let group_kustomization_dir =
         manifests_repo_path <> "/_group-" <> group_name
       let group_kustomization_fs_dir = repo_path_to_fs(group_kustomization_dir)
@@ -275,15 +273,9 @@ fn write_flux_kustomizations(
         )
       let kustomization_path =
         group_kustomization_fs_dir <> "/kustomization.yaml"
-      case
-        simplifile.write(to: kustomization_path, contents: kustomization_yaml)
-      {
-        Ok(Nil) -> io.print_error("Wrote " <> kustomization_path)
-        Error(_) ->
-          io.print_error("Error: failed to write " <> kustomization_path)
-      }
+      let result = output.smart_write(kustomization_path, kustomization_yaml)
 
-      "./" <> group_kustomization_dir
+      #("./" <> group_kustomization_dir, result)
     }
 
     let spec_fields =
@@ -342,10 +334,9 @@ fn write_flux_kustomizations(
       )
 
     let path = cluster_dir <> "/" <> filename
-    case simplifile.write(to: path, contents: yaml) {
-      Ok(Nil) -> io.print_error("Wrote " <> path)
-      Error(_) -> io.print_error("Error: failed to write " <> path)
-    }
+    let flux_result = output.smart_write(path, yaml)
+
+    [kustomization_result, flux_result]
   })
 }
 
