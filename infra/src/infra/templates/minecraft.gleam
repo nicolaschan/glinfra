@@ -46,7 +46,7 @@ const helm_repo_url = "https://itzg.github.io/minecraft-server-charts/"
 
 const helm_chart = "minecraft"
 
-const helm_chart_version = "3.4.x"
+const helm_chart_version = "5.1.x"
 
 const backup_image = "ghcr.io/nicolaschan/minecraft-backup:latest"
 

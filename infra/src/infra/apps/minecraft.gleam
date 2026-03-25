@@ -27,7 +27,7 @@ pub fn stack() -> Stack {
     "minecraft",
     minecraft.ServerConfig(
       server_type: "VANILLA",
-      version: "1.21.11",
+      version: "26.1",
       game_mode: "survival",
       difficulty: "hard",
       memory: "6G",
