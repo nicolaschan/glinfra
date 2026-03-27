@@ -249,7 +249,7 @@ spec:
   routes:
   - match: "HostSNI(`*`)"
     services:
-    - name: minecraft-minecraft
+    - name: minecraft
       port: 25565
       weight: 10
 ---

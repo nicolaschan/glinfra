@@ -72,7 +72,7 @@ pub fn to_stack(mc: Minecraft) -> Stack {
   let server_pvc_claim = name <> "-minecraft-datadir"
   let rcon_service = name <> "-minecraft-rcon"
   let rcon_connection = rcon_service <> ":25575:" <> config.rcon_password
-  let service_name = name <> "-minecraft"
+  let service_name = name
 
   let lockfile_storage =
     storage.new(lockfile_pvc_claim, "5G")
