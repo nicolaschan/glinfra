@@ -63,9 +63,9 @@ spec:
       template:
         spec:
           volumes:
-          - name: minecraft-minecraft-datadir-volume
+          - name: minecraft-datadir-volume
             persistentVolumeClaim:
-              claimName: minecraft-minecraft-datadir
+              claimName: minecraft-datadir
           - name: minecraft-backup-lockfile-pvc-volume
             persistentVolumeClaim:
               claimName: minecraft-backup-lockfile-pvc
@@ -85,7 +85,7 @@ spec:
                   key: restic_password
             volumeMounts:
             - mountPath: "/mnt/server"
-              name: minecraft-minecraft-datadir-volume
+              name: minecraft-datadir-volume
             - mountPath: "/mnt/lockfile"
               name: minecraft-backup-lockfile-pvc-volume
             - mountPath: "/root/.ssh"
@@ -101,7 +101,7 @@ spec:
             - -r
             - "sftp://git@monad.zeromap.net/minecraft-restic"
             - -s
-            - "minecraft-minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
+            - "minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
             - -w
             - rcon
             - -t
@@ -125,9 +125,9 @@ spec:
       template:
         spec:
           volumes:
-          - name: minecraft-minecraft-datadir-volume
+          - name: minecraft-datadir-volume
             persistentVolumeClaim:
-              claimName: minecraft-minecraft-datadir
+              claimName: minecraft-datadir
           - name: minecraft-backup-lockfile-pvc-volume
             persistentVolumeClaim:
               claimName: minecraft-backup-lockfile-pvc
@@ -147,7 +147,7 @@ spec:
                   key: restic_password
             volumeMounts:
             - mountPath: "/mnt/server"
-              name: minecraft-minecraft-datadir-volume
+              name: minecraft-datadir-volume
             - mountPath: "/mnt/lockfile"
               name: minecraft-backup-lockfile-pvc-volume
             - mountPath: "/root/.ssh"
@@ -163,7 +163,7 @@ spec:
             - -r
             - "sftp://nchan@frontyard.glaceon.org:62222/minecraft-restic"
             - -s
-            - "minecraft-minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
+            - "minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
             - -w
             - rcon
             - -t
@@ -187,9 +187,9 @@ spec:
       template:
         spec:
           volumes:
-          - name: minecraft-minecraft-datadir-volume
+          - name: minecraft-datadir-volume
             persistentVolumeClaim:
-              claimName: minecraft-minecraft-datadir
+              claimName: minecraft-datadir
           - name: minecraft-backup-lockfile-pvc-volume
             persistentVolumeClaim:
               claimName: minecraft-backup-lockfile-pvc
@@ -209,7 +209,7 @@ spec:
                   key: restic_password
             volumeMounts:
             - mountPath: "/mnt/server"
-              name: minecraft-minecraft-datadir-volume
+              name: minecraft-datadir-volume
             - mountPath: "/mnt/lockfile"
               name: minecraft-backup-lockfile-pvc-volume
             - mountPath: "/root/.ssh"
@@ -225,7 +225,7 @@ spec:
             - -r
             - "sftp://nc99@fnixon-externalsvc.endpoint.glaceon.org:55/harddrive2/backups/minecraft-restic"
             - -s
-            - "minecraft-minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
+            - "minecraft-rcon:25575:cdghkdtcouh8476e6qh22h"
             - -w
             - rcon
             - -t

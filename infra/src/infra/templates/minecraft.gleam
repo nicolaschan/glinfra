@@ -69,8 +69,8 @@ pub fn to_stack(mc: Minecraft) -> Stack {
   let config = mc.config
   let backup_secret = name <> "-backup-secret"
   let lockfile_pvc_claim = name <> "-backup-lockfile-pvc"
-  let server_pvc_claim = name <> "-minecraft-datadir"
-  let rcon_service = name <> "-minecraft-rcon"
+  let server_pvc_claim = name <> "-datadir"
+  let rcon_service = name <> "-rcon"
   let rcon_connection = rcon_service <> ":25575:" <> config.rcon_password
   let service_name = name
 
