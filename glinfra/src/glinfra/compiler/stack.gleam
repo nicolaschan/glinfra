@@ -395,12 +395,13 @@ fn storage_to_pvc(
   ns: String,
   s: Storage,
 ) -> persistent_volume_claim.PersistentVolumeClaim {
+  let annotations = [k8s.no_prune_annotation, ..s.annotations]
   persistent_volume_claim.PersistentVolumeClaim(
     metadata: k8s.ObjectMeta(
       name: s.name,
       namespace: Some(ns),
       labels: [],
-      annotations: [],
+      annotations: annotations,
     ),
     spec: persistent_volume_claim.PvcSpec(
       access_modes: s.access_modes,

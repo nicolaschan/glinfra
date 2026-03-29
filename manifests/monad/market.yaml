@@ -125,6 +125,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: mongo-pvc
   namespace: market
+  annotations:
+    "kustomize.toolkit.fluxcd.io/prune": disabled
 spec:
   accessModes:
   - ReadWriteOnce

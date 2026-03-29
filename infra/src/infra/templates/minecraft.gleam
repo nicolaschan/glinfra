@@ -4,6 +4,7 @@ import glinfra/blueprint/app
 import glinfra/blueprint/job
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage
+import glinfra/k8s
 import glinfra/k8s/helm_release
 import glinfra/k8s/helm_repository
 import glinfra_providers/traefik
@@ -185,6 +186,15 @@ fn server_values(config: ServerConfig) -> cymbal.Yaml {
       "persistence",
       cymbal.block([
         #("dataDir", cymbal.block([#("enabled", cymbal.bool(True))])),
+        #(
+          "annotations",
+          cymbal.block([
+            #(
+              k8s.no_prune_annotation.0,
+              cymbal.string(k8s.no_prune_annotation.1),
+            ),
+          ]),
+        ),
       ]),
     ),
   ])

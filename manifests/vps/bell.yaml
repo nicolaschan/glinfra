@@ -142,6 +142,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: schedules
   namespace: bell
+  annotations:
+    "kustomize.toolkit.fluxcd.io/prune": disabled
 spec:
   accessModes:
   - ReadWriteOnce

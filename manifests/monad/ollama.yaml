@@ -140,6 +140,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: ollama-pvc
   namespace: ollama
+  annotations:
+    "kustomize.toolkit.fluxcd.io/prune": disabled
 spec:
   accessModes:
   - ReadWriteOnce
@@ -153,6 +155,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: openwebui-pvc
   namespace: ollama
+  annotations:
+    "kustomize.toolkit.fluxcd.io/prune": disabled
 spec:
   accessModes:
   - ReadWriteOnce

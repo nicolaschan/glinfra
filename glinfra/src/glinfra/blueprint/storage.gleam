@@ -6,6 +6,7 @@ pub type Storage {
     size: String,
     storage_class: Option(String),
     access_modes: List(String),
+    annotations: List(#(String, String)),
   )
 }
 
@@ -21,6 +22,7 @@ pub fn new(name: String, size: String) -> Storage {
     access_modes: [
       "ReadWriteOnce",
     ],
+    annotations: [],
   )
 }
 
@@ -34,6 +36,13 @@ pub fn with_default_storage_class(storage: Storage) -> Storage {
 
 pub fn with_access_modes(storage: Storage, modes: List(String)) -> Storage {
   Storage(..storage, access_modes: modes)
+}
+
+pub fn with_annotations(
+  storage: Storage,
+  annotations: List(#(String, String)),
+) -> Storage {
+  Storage(..storage, annotations: annotations)
 }
 
 pub fn ref(storage: Storage) -> StorageRef {

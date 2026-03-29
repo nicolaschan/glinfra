@@ -47,6 +47,8 @@ spec:
     persistence:
       dataDir:
         enabled: true
+      annotations:
+        "kustomize.toolkit.fluxcd.io/prune": disabled
 ---
 apiVersion: "batch/v1"
 kind: CronJob
@@ -258,6 +260,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: minecraft-backup-lockfile-pvc
   namespace: minecraft
+  annotations:
+    "kustomize.toolkit.fluxcd.io/prune": disabled
 spec:
   accessModes:
   - ReadWriteOnce

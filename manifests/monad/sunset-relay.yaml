@@ -133,6 +133,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: relay-data
   namespace: sunset-relay
+  annotations:
+    "kustomize.toolkit.fluxcd.io/prune": disabled
 spec:
   accessModes:
   - ReadWriteOnce

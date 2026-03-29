@@ -74,6 +74,12 @@ pub fn meta_ns(name: String, namespace: String) -> ObjectMeta {
   )
 }
 
+/// Annotation that prevents Flux from pruning a resource.
+pub const no_prune_annotation = #(
+  "kustomize.toolkit.fluxcd.io/prune",
+  "disabled",
+)
+
 /// Encode any cymbal document to a YAML string.
 pub fn to_yaml(doc: cymbal.Yaml) -> String {
   cymbal.encode(doc)
