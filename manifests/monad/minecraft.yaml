@@ -32,7 +32,7 @@ spec:
   values:
     minecraftServer:
       type: VANILLA
-      version: "26.1"
+      version: "26.1.1"
       gameMode: survival
       eula: true
       difficulty: hard
