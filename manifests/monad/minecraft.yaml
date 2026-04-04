@@ -36,7 +36,7 @@ spec:
       gameMode: survival
       eula: true
       difficulty: hard
-      motd: "\\u00A78\\u00A7l[Private] \\u00A72Survival\\u00A7r\\n\\u00A7rπ != 314"
+      motd: "\\u00a78\\u00a7l[Private]\\u00a72 Survival\\u00a7r\\n\\u00a7d\\ud83c\\udf38 \\u00a7d\\u00a7oCherry Mountain Super Express now open! \\u00a7d\\ud83c\\udf38"
       viewDistance: 16
       pvp: true
       enableCommandBlock: false
