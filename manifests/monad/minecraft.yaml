@@ -36,6 +36,7 @@ spec:
       gameMode: survival
       eula: true
       difficulty: hard
+      motd: "\\u00A78\\u00A7l[Private] \\u00A72Survival\\u00A7r\\n\\u00A7rπ != 314"
       viewDistance: 16
       pvp: true
       enableCommandBlock: false

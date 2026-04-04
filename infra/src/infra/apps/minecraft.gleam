@@ -31,6 +31,7 @@ pub fn stack() -> Stack {
       game_mode: "survival",
       difficulty: "hard",
       memory: "6G",
+      motd: "\\u00A78\\u00A7l[Private] \\u00A72Survival\\u00A7r\\n\\u00A7rπ != 314",
       rcon_password: "cdghkdtcouh8476e6qh22h",
       view_distance: 16,
       pvp: True,
