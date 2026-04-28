@@ -3,8 +3,6 @@ import glinfra/blueprint/image
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage
 
-const args = ["--identity", "/data/identity.key"]
-
 pub fn stack() -> Stack {
   let relay_storage = storage.new("relay-data", "1G")
 
@@ -14,9 +12,8 @@ pub fn stack() -> Stack {
 
   let relay_app =
     app.new("sunset-relay")
-    |> app.expose_http1(4001, "relay.sunset.chat")
+    |> app.expose_http1(8443, "relay.sunset.chat")
     |> app.add_image(relay_image)
-    |> app.with_args(args)
     |> app.add_storage("/data", storage.ref(relay_storage))
 
   stack.new("sunset-relay")

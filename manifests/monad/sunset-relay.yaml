@@ -27,11 +27,8 @@ spec:
       containers:
       - image: "${GHCR_IO_NICOLASCHAN_SUNSET_RELAY_IMAGE}"
         name: sunset-relay
-        args:
-        - --identity
-        - "/data/identity.key"
         ports:
-        - containerPort: 4001
+        - containerPort: 8443
           protocol: TCP
         volumeMounts:
         - mountPath: "/data"
@@ -52,8 +49,8 @@ spec:
   selector:
     app: sunset-relay
   ports:
-  - port: 4001
-    targetPort: 4001
+  - port: 8443
+    targetPort: 8443
     protocol: TCP
 ---
 apiVersion: "networking.k8s.io/v1"
@@ -77,7 +74,7 @@ spec:
           service:
             name: sunset-relay
             port:
-              number: 4001
+              number: 8443
   tls:
   - hosts:
     - "relay.sunset.chat"
