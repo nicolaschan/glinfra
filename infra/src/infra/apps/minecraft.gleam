@@ -31,7 +31,7 @@ pub fn stack() -> Stack {
       game_mode: "survival",
       difficulty: "hard",
       memory: "6G",
-      motd: "\\u00a78[Private] \\u00a72\\u00a7lSurvival\\u00a7r\n\\u00a7d\\ud83c\\udf38 \\u00a7d\\u00a7oCherry Mountain Super Express now open! \\u00a7d\\ud83c\\udf38",
+      motd: "\\u00a78[Private] \\u00a72\\u00a7lSurvival\\u00a7r\\\\n\\u00a7d\\ud83c\\udf38 \\u00a7d\\u00a7oCherry Mountain Super Express now open! \\u00a7d\\ud83c\\udf38",
       rcon_password: "cdghkdtcouh8476e6qh22h",
       view_distance: 16,
       pvp: True,
