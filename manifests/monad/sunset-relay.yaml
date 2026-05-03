@@ -16,8 +16,6 @@ spec:
   selector:
     matchLabels:
       app: sunset-relay
-  strategy:
-    type: Recreate
   template:
     metadata:
       name: sunset-relay
@@ -32,13 +30,6 @@ spec:
           protocol: TCP
         - containerPort: 8443
           protocol: TCP
-        volumeMounts:
-        - mountPath: "/data"
-          name: relay-data-volume
-      volumes:
-      - name: relay-data-volume
-        persistentVolumeClaim:
-          claimName: relay-data
 ---
 apiVersion: v1
 kind: Service
@@ -142,18 +133,3 @@ spec:
     namespace: default
   update:
     path: "./manifests/monad"
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: relay-data
-  namespace: sunset-relay
-  annotations:
-    "kustomize.toolkit.fluxcd.io/prune": disabled
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: "1G"
-  storageClassName: local-path
