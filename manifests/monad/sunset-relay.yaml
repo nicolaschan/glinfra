@@ -25,11 +25,22 @@ spec:
       containers:
       - image: "${GHCR_IO_NICOLASCHAN_SUNSET_RELAY_IMAGE}"
         name: sunset-relay
+        args:
+        - --config
+        - "/etc/sunset-relay/config.toml"
         ports:
         - containerPort: 8444
           protocol: TCP
         - containerPort: 8443
           protocol: TCP
+        volumeMounts:
+        - mountPath: "/etc/sunset-relay"
+          name: config-volume
+          readOnly: true
+      volumes:
+      - name: config-volume
+        configMap:
+          name: sunset-relay-config
 ---
 apiVersion: v1
 kind: Service
@@ -133,3 +144,11 @@ spec:
     namespace: default
   update:
     path: "./manifests/monad"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sunset-relay-config
+  namespace: sunset-relay
+binaryData:
+  "config.toml": "IyBHZW5lcmF0ZWQgYnkgaW5mcmEvYXBwcy9zdW5zZXRfcmVsYXkuZ2xlYW0g4oCUIGRvIG5vdCBoYW5kLWVkaXQKIyB0aGUgQ29uZmlnTWFwOyBlZGl0IHRoZSBHbGVhbSBzb3VyY2UgYW5kIHJlZ2VuZXJhdGUuCmxpc3Rlbl9hZGRyID0gIjAuMC4wLjA6ODQ0MyIKZGF0YV9kaXIgPSAiL2RhdGEiCmludGVyZXN0X2ZpbHRlciA9ICJhbGwiCmlkZW50aXR5X3NlY3JldCA9ICJhdXRvIgpwZWVycyA9IFtdCndlYnRyYW5zcG9ydF9zYW4gPSBbInJlbGF5LnN1bnNldC5jaGF0IiwgIjEyNy4wLjAuMSIsICJsb2NhbGhvc3QiXQo="
