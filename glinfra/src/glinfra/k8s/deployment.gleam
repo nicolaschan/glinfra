@@ -23,6 +23,7 @@ pub type VolumeMount {
 pub type Volume {
   PvcVolume(name: String, claim_name: String, read_only: Option(Bool))
   SecretVolume(name: String, secret_name: String)
+  ConfigMapVolume(name: String, config_map_name: String)
 }
 
 pub type Strategy {
@@ -178,6 +179,14 @@ fn volume_to_cymbal(v: Volume) -> cymbal.Yaml {
       cymbal.block([
         #("name", cymbal.string(name)),
         #("secret", cymbal.block([#("secretName", cymbal.string(secret_name))])),
+      ])
+    ConfigMapVolume(name, config_map_name) ->
+      cymbal.block([
+        #("name", cymbal.string(name)),
+        #(
+          "configMap",
+          cymbal.block([#("name", cymbal.string(config_map_name))]),
+        ),
       ])
   }
 }
