@@ -1,6 +1,7 @@
 import glinfra/blueprint/app
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage
+import glinfra/k8s/deployment
 import glinfra_providers/nvidia
 import glinfra_providers/traefik
 import infra/middleware/local_ipwhitelist
@@ -24,6 +25,7 @@ pub fn stack() -> Stack {
     )
     |> app.image("ghcr.io/open-webui/open-webui:main-slim")
     |> app.add_storage("/app/backend/data", storage.ref(openwebui_storage))
+    |> app.with_image_pull_policy(deployment.Always)
 
   stack.new("ollama")
   |> stack.add_storage(openwebui_storage)

@@ -362,6 +362,7 @@ fn app_to_deployment(
         volume_mounts: volume_mounts,
         resources: deployment.ResourceRequirements(limits: [], requests: []),
         lifecycle: c.lifecycle,
+        image_pull_policy: c.image_pull_policy,
       )
     })
 

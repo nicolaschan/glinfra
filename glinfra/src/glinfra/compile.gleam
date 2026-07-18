@@ -358,7 +358,9 @@ fn repo_path_to_fs(repo_path: String) -> String {
   "../" <> repo_path
 }
 
-fn merge_resources(resources: List(RenderedResource)) -> List(RenderedResource) {
+fn merge_resources(
+  resources: List(RenderedResource),
+) -> List(RenderedResource) {
   list.fold(resources, [], fn(acc: List(RenderedResource), resource) {
     case list.find(acc, fn(r) { r.name == resource.name }) {
       Ok(existing) -> {

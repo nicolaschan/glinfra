@@ -24,6 +24,7 @@ pub type Container {
     env: List(Env),
     secret_volumes: List(SecretVolumeRef),
     lifecycle: Option(deployment.Lifecycle),
+    image_pull_policy: Option(deployment.ImagePullPolicy),
   )
 }
 
@@ -35,6 +36,7 @@ pub fn new(image_string: String) -> Container {
     env: [],
     secret_volumes: [],
     lifecycle: None,
+    image_pull_policy: None,
   )
 }
 
@@ -46,7 +48,15 @@ pub fn image(img: Image) -> Container {
     env: [],
     secret_volumes: [],
     lifecycle: None,
+    image_pull_policy: None,
   )
+}
+
+pub fn with_image_pull_policy(
+  container: Container,
+  policy: deployment.ImagePullPolicy,
+) -> Container {
+  Container(..container, image_pull_policy: Some(policy))
 }
 
 pub fn with_args(container: Container, args: List(String)) -> Container {
@@ -68,7 +78,10 @@ pub fn add_env(container: Container, name: String, value: String) -> Container {
   Container(..container, env: [Literal(name, value), ..container.env])
 }
 
-pub fn secret_volume(secret_name: String, mount_path: String) -> SecretVolumeRef {
+pub fn secret_volume(
+  secret_name: String,
+  mount_path: String,
+) -> SecretVolumeRef {
   SecretVolumeRef(name: secret_name, mount_path: mount_path, read_only: True)
 }
 
@@ -83,7 +96,10 @@ pub fn add_secret_volume(
   Container(..container, secret_volumes: [ref, ..container.secret_volumes])
 }
 
-pub fn add_env_from_secret(container: Container, ref: SecretEnvRef) -> Container {
+pub fn add_env_from_secret(
+  container: Container,
+  ref: SecretEnvRef,
+) -> Container {
   Container(..container, env: [AllFromSecret(ref), ..container.env])
 }
 
@@ -105,7 +121,10 @@ pub fn post_start(
   Container(..container, lifecycle: Some(lifecycle))
 }
 
-pub fn post_start_exec(container: Container, command: List(String)) -> Container {
+pub fn post_start_exec(
+  container: Container,
+  command: List(String),
+) -> Container {
   post_start(container, deployment.ExecHandler(command: command))
 }
 

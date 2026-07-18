@@ -77,7 +77,11 @@ fn policy_rule_to_cymbal(rule: ImagePolicyRule) -> cymbal.Yaml {
   }
 }
 
-pub fn new_semver(name: String, repo_ref: String, range: String) -> ImagePolicy {
+pub fn new_semver(
+  name: String,
+  repo_ref: String,
+  range: String,
+) -> ImagePolicy {
   ImagePolicy(
     metadata: k8s.meta(name),
     spec: ImagePolicySpec(

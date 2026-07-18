@@ -30,6 +30,20 @@ pub type Strategy {
   RollingUpdate
 }
 
+pub type ImagePullPolicy {
+  Always
+  IfNotPresent
+  Never
+}
+
+fn image_pull_policy_to_string(p: ImagePullPolicy) -> String {
+  case p {
+    Always -> "Always"
+    IfNotPresent -> "IfNotPresent"
+    Never -> "Never"
+  }
+}
+
 pub type ResourceRequirements {
   ResourceRequirements(
     limits: List(#(String, String)),
@@ -71,6 +85,7 @@ pub type Container {
     volume_mounts: List(VolumeMount),
     resources: ResourceRequirements,
     lifecycle: Option(Lifecycle),
+    image_pull_policy: Option(ImagePullPolicy),
   )
 }
 
@@ -255,6 +270,14 @@ fn container_to_cymbal(c: Container) -> cymbal.Yaml {
     None -> fields
   }
 
+  let fields = case c.image_pull_policy {
+    Some(policy) ->
+      list.append(fields, [
+        #("imagePullPolicy", cymbal.string(image_pull_policy_to_string(policy))),
+      ])
+    None -> fields
+  }
+
   cymbal.block(fields)
 }
 
@@ -366,6 +389,7 @@ pub fn new(
             volume_mounts: [],
             resources: ResourceRequirements(limits: [], requests: []),
             lifecycle: None,
+            image_pull_policy: None,
           ),
         ],
         volumes: [],

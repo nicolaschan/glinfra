@@ -100,7 +100,11 @@ pub type AppPlugin {
   ExtraResources(generate: fn(String, StackApp) -> List(cymbal.Yaml))
 }
 
-pub fn add_storage(app: App, mount_path: String, storage_ref: StorageRef) -> App {
+pub fn add_storage(
+  app: App,
+  mount_path: String,
+  storage_ref: StorageRef,
+) -> App {
   let containers =
     list.map(app.containers, fn(c) {
       container.add_storage(c, mount_path, storage_ref)
@@ -141,6 +145,17 @@ pub fn add_secret_volume(app: App, ref: container.SecretVolumeRef) -> App {
 pub fn with_lifecycle(app: App, lifecycle: deployment.Lifecycle) -> App {
   let containers =
     list.map(app.containers, fn(c) { container.with_lifecycle(c, lifecycle) })
+  App(..app, containers: containers)
+}
+
+pub fn with_image_pull_policy(
+  app: App,
+  policy: deployment.ImagePullPolicy,
+) -> App {
+  let containers =
+    list.map(app.containers, fn(c) {
+      container.with_image_pull_policy(c, policy)
+    })
   App(..app, containers: containers)
 }
 

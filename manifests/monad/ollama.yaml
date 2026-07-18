@@ -88,6 +88,7 @@ spec:
         volumeMounts:
         - mountPath: "/app/backend/data"
           name: openwebui-pvc-volume
+        imagePullPolicy: Always
       volumes:
       - name: openwebui-pvc-volume
         persistentVolumeClaim:
