@@ -63,7 +63,7 @@ metadata:
     "cert-manager.io/cluster-issuer": letsencrypt-prod
     "cert-manager.io/private-key-algorithm": ECDSA
     "traefik.ingress.kubernetes.io/router.entrypoints": "web,websecure"
-    "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd"
+    "traefik.ingress.kubernetes.io/router.middlewares": "default-hsts-middleware@kubernetescrd,default-https-redirect-middleware@kubernetescrd,default-local-ipwhitelist@kubernetescrd"
 spec:
   rules:
   - host: "openclaw.app.zeromap.net"
