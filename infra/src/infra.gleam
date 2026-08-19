@@ -14,6 +14,7 @@ import infra/apps/market
 import infra/apps/minecraft
 import infra/apps/mines
 import infra/apps/ollama
+import infra/apps/openclaw
 import infra/apps/sunset_relay
 import infra/apps/x3dtictactoe
 import infra/middleware/hsts
@@ -63,6 +64,7 @@ pub fn main() -> Nil {
     minecraft.stack(),
     cloudflare_ddns.stack(),
     sunset_relay.stack(),
+    openclaw.stack(),
   ]
 
   let monad_stacks =
