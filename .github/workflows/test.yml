@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
+      - run: nix develop . --command gleam --version
       - run: nix develop . --command gleam deps download
       - run: nix develop . --command gleam test
       - run: nix develop . --command gleam format --check src
