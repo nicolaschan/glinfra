@@ -23,5 +23,6 @@ pub fn stack() -> Stack {
 
   stack.new("paseo")
   |> stack.add_storage(paseo_home)
+  |> stack.add_storage(paseo_workspace)
   |> stack.add_app(paseo)
 }
