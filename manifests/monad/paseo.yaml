@@ -31,10 +31,15 @@ spec:
         - containerPort: 6767
           protocol: TCP
         volumeMounts:
+        - mountPath: "/workspace"
+          name: paseo-workspace-volume
         - mountPath: "/home/paseo"
           name: paseo-home-volume
         imagePullPolicy: Always
       volumes:
+      - name: paseo-workspace-volume
+        persistentVolumeClaim:
+          claimName: paseo-workspace
       - name: paseo-home-volume
         persistentVolumeClaim:
           claimName: paseo-home
