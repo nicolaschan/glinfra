@@ -13,7 +13,7 @@ pub fn stack() -> Stack {
     app.new("mongo")
     |> app.expose_tcp(27_017)
     |> app.image("mongo:6")
-    |> app.add_storage("/data/db", storage.ref(mongo_storage))
+    |> app.mount_pvc("/data/db", storage.ref(mongo_storage))
 
   stack.new("market")
   |> stack.add_storage(mongo_storage)

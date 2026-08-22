@@ -48,6 +48,7 @@ pub type JobVolumeMount {
 pub type JobVolume {
   PvcVolume(name: String, claim_name: String)
   SecretVolume(name: String, secret_name: String, default_mode: Option(Int))
+  HostPathVolume(name: String, path: String)
 }
 
 pub fn to_cymbal(c: CronJob) -> cymbal.Yaml {
@@ -210,5 +211,10 @@ fn volume_to_cymbal(v: JobVolume) -> cymbal.Yaml {
         #("secret", cymbal.block(secret_fields)),
       ])
     }
+    HostPathVolume(name, path) ->
+      cymbal.block([
+        #("name", cymbal.string(name)),
+        #("hostPath", cymbal.block([#("path", cymbal.string(path))])),
+      ])
   }
 }

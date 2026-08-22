@@ -1,11 +1,8 @@
 import gleam/option.{type Option, None, Some}
 import glinfra/blueprint/image.{type Image}
 import glinfra/blueprint/storage.{type StorageRef}
+import glinfra/blueprint/volume.{type VolumeRef}
 import glinfra/k8s/deployment
-
-pub type SecretVolumeRef {
-  SecretVolumeRef(name: String, mount_path: String, read_only: Bool)
-}
 
 pub type SecretEnvRef {
   SecretEnvRef(name: String)
@@ -20,9 +17,8 @@ pub type Container {
   Container(
     image: Image,
     args: Option(List(String)),
-    storage: List(#(String, StorageRef)),
+    volumes: List(VolumeRef),
     env: List(Env),
-    secret_volumes: List(SecretVolumeRef),
     lifecycle: Option(deployment.Lifecycle),
     image_pull_policy: Option(deployment.ImagePullPolicy),
   )
@@ -32,9 +28,8 @@ pub fn new(image_string: String) -> Container {
   Container(
     image: image.from_string(image_string),
     args: None,
-    storage: [],
+    volumes: [],
     env: [],
-    secret_volumes: [],
     lifecycle: None,
     image_pull_policy: None,
   )
@@ -44,9 +39,8 @@ pub fn image(img: Image) -> Container {
   Container(
     image: img,
     args: None,
-    storage: [],
+    volumes: [],
     env: [],
-    secret_volumes: [],
     lifecycle: None,
     image_pull_policy: None,
   )
@@ -63,37 +57,20 @@ pub fn with_args(container: Container, args: List(String)) -> Container {
   Container(..container, args: Some(args))
 }
 
+pub fn add_volume(container: Container, ref: VolumeRef) -> Container {
+  Container(..container, volumes: [ref, ..container.volumes])
+}
+
 pub fn add_storage(
   container: Container,
   mount_path: String,
   storage_ref: StorageRef,
 ) -> Container {
-  Container(..container, storage: [
-    #(mount_path, storage_ref),
-    ..container.storage
-  ])
+  add_volume(container, volume.from_storage_ref(mount_path, storage_ref))
 }
 
 pub fn add_env(container: Container, name: String, value: String) -> Container {
   Container(..container, env: [Literal(name, value), ..container.env])
-}
-
-pub fn secret_volume(
-  secret_name: String,
-  mount_path: String,
-) -> SecretVolumeRef {
-  SecretVolumeRef(name: secret_name, mount_path: mount_path, read_only: True)
-}
-
-pub fn writable(ref: SecretVolumeRef) -> SecretVolumeRef {
-  SecretVolumeRef(..ref, read_only: False)
-}
-
-pub fn add_secret_volume(
-  container: Container,
-  ref: SecretVolumeRef,
-) -> Container {
-  Container(..container, secret_volumes: [ref, ..container.secret_volumes])
 }
 
 pub fn add_env_from_secret(

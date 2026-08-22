@@ -1,5 +1,6 @@
 import gleam/list
 import glinfra/blueprint/storage.{type StorageRef}
+import glinfra/blueprint/volume.{type VolumeRef}
 
 pub type Job {
   Job(
@@ -7,14 +8,9 @@ pub type Job {
     image: String,
     schedule: String,
     command: List(String),
-    volumes: List(JobVolume),
+    volumes: List(VolumeRef),
     env: List(JobEnv),
   )
-}
-
-pub type JobVolume {
-  PvcVolume(mount_path: String, storage: StorageRef)
-  SecretVolume(mount_path: String, secret_name: String)
 }
 
 pub type JobEnv {
@@ -40,14 +36,27 @@ pub fn new(
 pub fn mount_pvc(job: Job, mount_path: String, storage: StorageRef) -> Job {
   Job(
     ..job,
-    volumes: list.append(job.volumes, [PvcVolume(mount_path, storage)]),
+    volumes: list.append(job.volumes, [
+      volume.from_storage_ref(mount_path, storage),
+    ]),
   )
 }
 
 pub fn mount_secret(job: Job, mount_path: String, secret_name: String) -> Job {
   Job(
     ..job,
-    volumes: list.append(job.volumes, [SecretVolume(mount_path, secret_name)]),
+    volumes: list.append(job.volumes, [
+      volume.secret(mount_path, secret_name),
+    ]),
+  )
+}
+
+pub fn mount_host_path(job: Job, mount_path: String, path: String) -> Job {
+  Job(
+    ..job,
+    volumes: list.append(job.volumes, [
+      volume.host_path(mount_path, path),
+    ]),
   )
 }
 

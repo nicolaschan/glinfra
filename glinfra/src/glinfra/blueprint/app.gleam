@@ -4,6 +4,7 @@ import gleam/option.{type Option, None, Some}
 import glinfra/blueprint/container.{type Container}
 import glinfra/blueprint/image.{type Image}
 import glinfra/blueprint/storage.{type StorageRef}
+import glinfra/blueprint/volume
 import glinfra/k8s/deployment
 import glinfra/k8s/helm_release.{type HelmRelease}
 import glinfra/k8s/helm_repository.{type HelmRepository}
@@ -100,16 +101,29 @@ pub type AppPlugin {
   ExtraResources(generate: fn(String, StackApp) -> List(cymbal.Yaml))
 }
 
-pub fn add_storage(
+pub fn mount_pvc(app: App, mount_path: String, storage_ref: StorageRef) -> App {
+  map_containers(app, fn(c) {
+    container.add_volume(c, volume.from_storage_ref(mount_path, storage_ref))
+  })
+}
+
+pub fn mount_secret(app: App, mount_path: String, secret_name: String) -> App {
+  map_containers(app, fn(c) {
+    container.add_volume(c, volume.secret(mount_path, secret_name))
+  })
+}
+
+pub fn mount_host_path(app: App, mount_path: String, path: String) -> App {
+  map_containers(app, fn(c) {
+    container.add_volume(c, volume.host_path(mount_path, path))
+  })
+}
+
+fn map_containers(
   app: App,
-  mount_path: String,
-  storage_ref: StorageRef,
+  f: fn(container.Container) -> container.Container,
 ) -> App {
-  let containers =
-    list.map(app.containers, fn(c) {
-      container.add_storage(c, mount_path, storage_ref)
-    })
-  App(..app, containers: containers)
+  App(..app, containers: list.map(app.containers, f))
 }
 
 pub fn add_env(app: App, name: String, value: String) -> App {
@@ -134,12 +148,6 @@ pub fn add_envs(app: App, envs: List(#(String, String))) -> App {
     let #(key, value) = env
     add_env(app, key, value)
   })
-}
-
-pub fn add_secret_volume(app: App, ref: container.SecretVolumeRef) -> App {
-  let containers =
-    list.map(app.containers, fn(c) { container.add_secret_volume(c, ref) })
-  App(..app, containers: containers)
 }
 
 pub fn with_lifecycle(app: App, lifecycle: deployment.Lifecycle) -> App {

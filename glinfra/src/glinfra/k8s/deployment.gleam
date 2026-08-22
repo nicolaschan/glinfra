@@ -23,6 +23,7 @@ pub type VolumeMount {
 pub type Volume {
   PvcVolume(name: String, claim_name: String, read_only: Option(Bool))
   SecretVolume(name: String, secret_name: String)
+  HostPathVolume(name: String, path: String)
 }
 
 pub type Strategy {
@@ -193,6 +194,11 @@ fn volume_to_cymbal(v: Volume) -> cymbal.Yaml {
       cymbal.block([
         #("name", cymbal.string(name)),
         #("secret", cymbal.block([#("secretName", cymbal.string(secret_name))])),
+      ])
+    HostPathVolume(name, path) ->
+      cymbal.block([
+        #("name", cymbal.string(name)),
+        #("hostPath", cymbal.block([#("path", cymbal.string(path))])),
       ])
   }
 }
