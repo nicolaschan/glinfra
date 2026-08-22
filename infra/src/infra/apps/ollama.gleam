@@ -15,7 +15,7 @@ pub fn stack() -> Stack {
     |> app.expose_tcp(11_434)
     |> app.add_plugin(nvidia.plugin())
     |> app.image("ollama/ollama:0.12.10")
-    |> app.add_storage("/root/.ollama", storage.ref(ollama_storage))
+    |> app.mount_pvc("/root/.ollama", storage.ref(ollama_storage))
 
   let openwebui =
     app.new("openwebui")
@@ -24,7 +24,7 @@ pub fn stack() -> Stack {
       traefik.ingress_middleware(local_ipwhitelist.middleware()),
     )
     |> app.image("ghcr.io/open-webui/open-webui:main-slim")
-    |> app.add_storage("/app/backend/data", storage.ref(openwebui_storage))
+    |> app.mount_pvc("/app/backend/data", storage.ref(openwebui_storage))
     |> app.with_image_pull_policy(deployment.Always)
 
   stack.new("ollama")

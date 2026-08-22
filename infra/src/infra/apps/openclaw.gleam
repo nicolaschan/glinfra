@@ -15,7 +15,7 @@ pub fn stack() -> Stack {
     |> app.add_plugin(
       traefik.ingress_middleware(local_ipwhitelist.middleware()),
     )
-    |> app.add_storage("/home/node/.openclaw", storage.ref(openclaw_storage))
+    |> app.mount_pvc("/home/node/.openclaw", storage.ref(openclaw_storage))
     |> app.with_image_pull_policy(deployment.Always)
 
   stack.new("openclaw")

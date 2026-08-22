@@ -30,10 +30,7 @@ pub fn stack() -> Stack {
     app.new("bell")
     |> app.expose_http2(8080, "bell.plus")
     |> app.image("ghcr.io/nicolaschan/bell:v4.12.3")
-    |> app.add_storage(
-      "/bell/schedules",
-      storage.readonly_ref(schedule_storage),
-    )
+    |> app.mount_pvc("/bell/schedules", storage.readonly_ref(schedule_storage))
     |> app.add_envs(bell_env)
     |> with_disabled_postgres()
 

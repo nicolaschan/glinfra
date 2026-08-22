@@ -12,6 +12,7 @@ import glinfra/blueprint/image
 import glinfra/blueprint/job
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage.{type Storage}
+import glinfra/blueprint/volume.{type VolumeRef}
 import glinfra/k8s
 import glinfra/k8s/cronjob
 import glinfra/k8s/deployment
@@ -255,45 +256,29 @@ fn app_to_deployment(
   labels: List(#(String, String)),
   explicit_strategy: Option(deployment.Strategy),
 ) -> deployment.Deployment {
-  let has_storage =
-    list.any(app_containers, fn(c) { !list.is_empty(c.storage) })
+  let has_pvc =
+    list.any(app_containers, fn(c) {
+      list.any(c.volumes, fn(v) {
+        case v.source {
+          volume.Pvc(_) -> True
+          _ -> False
+        }
+      })
+    })
 
   let strategy = case explicit_strategy {
     Some(s) -> Some(s)
     None ->
-      case has_storage {
+      case has_pvc {
         True -> Some(deployment.Recreate)
         False -> None
       }
   }
 
-  let pvc_volumes =
+  let volumes =
     list.flat_map(app_containers, fn(c) {
-      list.map(c.storage, fn(s) {
-        let #(_mount_path, storage_ref) = s
-        let pvc_name = storage_ref.name
-        deployment.PvcVolume(
-          name: pvc_name <> "-volume",
-          claim_name: pvc_name,
-          read_only: case storage_ref.read_only {
-            True -> Some(True)
-            False -> None
-          },
-        )
-      })
+      list.map(c.volumes, volume_to_pod_volume)
     })
-
-  let secret_volumes =
-    list.flat_map(app_containers, fn(c) {
-      list.map(c.secret_volumes, fn(sv) {
-        deployment.SecretVolume(
-          name: sv.name <> "-volume",
-          secret_name: sv.name,
-        )
-      })
-    })
-
-  let volumes = list.append(pvc_volumes, secret_volumes)
 
   let container_count = list.length(app_containers)
   let containers =
@@ -309,27 +294,7 @@ fn app_to_deployment(
             protocol: Some("TCP"),
           )
         })
-      let pvc_mounts =
-        list.map(c.storage, fn(s) {
-          let #(mount_path, storage_ref) = s
-          deployment.VolumeMount(
-            name: storage_ref.name <> "-volume",
-            mount_path: mount_path,
-            read_only: None,
-          )
-        })
-      let secret_mounts =
-        list.map(c.secret_volumes, fn(sv) {
-          deployment.VolumeMount(
-            name: sv.name <> "-volume",
-            mount_path: sv.mount_path,
-            read_only: case sv.read_only {
-              True -> Some(True)
-              False -> None
-            },
-          )
-        })
-      let volume_mounts = list.append(pvc_mounts, secret_mounts)
+      let volume_mounts = list.map(c.volumes, volume_to_pod_mount)
       let env =
         list.flat_map(list.reverse(c.env), fn(e) {
           case e {
@@ -389,6 +354,71 @@ fn app_to_deployment(
         runtime_class_name: None,
       ),
     ),
+  )
+}
+
+fn volume_to_pod_volume(ref: VolumeRef) -> deployment.Volume {
+  case ref.source {
+    volume.Pvc(claim_name) ->
+      deployment.PvcVolume(
+        name: volume.volume_name(ref),
+        claim_name: claim_name,
+        read_only: volume_read_only(ref),
+      )
+    volume.Secret(secret_name) ->
+      deployment.SecretVolume(
+        name: volume.volume_name(ref),
+        secret_name: secret_name,
+      )
+    volume.HostPath(path) ->
+      deployment.HostPathVolume(name: volume.volume_name(ref), path: path)
+  }
+}
+
+fn volume_to_pod_mount(ref: VolumeRef) -> deployment.VolumeMount {
+  deployment.VolumeMount(
+    name: volume.volume_name(ref),
+    mount_path: volume.mount_path(ref),
+    read_only: mount_read_only(ref),
+  )
+}
+
+fn volume_read_only(ref: VolumeRef) -> Option(Bool) {
+  case ref.read_only {
+    True -> Some(True)
+    False -> None
+  }
+}
+
+fn mount_read_only(ref: VolumeRef) -> Option(Bool) {
+  // k8s only has a read-only field on the claim for PVCs; secret and
+  // hostPath sources express read-only on the mount.
+  case ref.source {
+    volume.Pvc(_) -> None
+    _ -> volume_read_only(ref)
+  }
+}
+
+fn volume_to_cronjob_volume(ref: VolumeRef) -> cronjob.JobVolume {
+  case ref.source {
+    volume.Pvc(claim_name) ->
+      cronjob.PvcVolume(name: volume.volume_name(ref), claim_name: claim_name)
+    volume.Secret(secret_name) ->
+      cronjob.SecretVolume(
+        name: volume.volume_name(ref),
+        secret_name: secret_name,
+        default_mode: Some(256),
+      )
+    volume.HostPath(path) ->
+      cronjob.HostPathVolume(name: volume.volume_name(ref), path: path)
+  }
+}
+
+fn volume_to_cronjob_mount(ref: VolumeRef) -> cronjob.JobVolumeMount {
+  cronjob.JobVolumeMount(
+    name: volume.volume_name(ref),
+    mount_path: volume.mount_path(ref),
+    read_only: mount_read_only(ref),
   )
 }
 
@@ -487,40 +517,8 @@ fn app_to_ingress(
 }
 
 fn job_to_cronjob(ns: String, j: job.Job) -> cymbal.Yaml {
-  let volumes =
-    list.map(j.volumes, fn(v) {
-      case v {
-        job.PvcVolume(_, storage_ref) ->
-          cronjob.PvcVolume(
-            name: storage_ref.name <> "-volume",
-            claim_name: storage_ref.name,
-          )
-        job.SecretVolume(_, secret_name) ->
-          cronjob.SecretVolume(
-            name: secret_name <> "-volume",
-            secret_name: secret_name,
-            default_mode: Some(256),
-          )
-      }
-    })
-
-  let volume_mounts =
-    list.map(j.volumes, fn(v) {
-      case v {
-        job.PvcVolume(mount_path, storage_ref) ->
-          cronjob.JobVolumeMount(
-            name: storage_ref.name <> "-volume",
-            mount_path: mount_path,
-            read_only: None,
-          )
-        job.SecretVolume(mount_path, secret_name) ->
-          cronjob.JobVolumeMount(
-            name: secret_name <> "-volume",
-            mount_path: mount_path,
-            read_only: Some(True),
-          )
-      }
-    })
+  let volumes = list.map(j.volumes, volume_to_cronjob_volume)
+  let volume_mounts = list.map(j.volumes, volume_to_cronjob_mount)
 
   let env =
     list.map(j.env, fn(e) {

@@ -17,8 +17,8 @@ pub fn stack() -> Stack {
     |> app.add_plugin(
       traefik.ingress_middleware(local_ipwhitelist.middleware()),
     )
-    |> app.add_storage("/home/paseo", storage.ref(paseo_home))
-    |> app.add_storage("/workspace", storage.ref(paseo_workspace))
+    |> app.mount_pvc("/home/paseo", storage.ref(paseo_home))
+    |> app.mount_pvc("/workspace", storage.ref(paseo_workspace))
     |> app.add_env("PASEO_HOSTNAMES", paseo_hostname)
     |> app.add_env_from_secret_name("paseo-secret")
     |> app.with_image_pull_policy(deployment.Always)
