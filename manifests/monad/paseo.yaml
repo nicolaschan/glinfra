@@ -92,6 +92,21 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
+  name: paseo-workspace
+  namespace: paseo
+  annotations:
+    "kustomize.toolkit.fluxcd.io/prune": disabled
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: "16G"
+  storageClassName: local-path
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
   name: paseo-home
   namespace: paseo
   annotations:
