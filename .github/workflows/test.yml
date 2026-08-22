@@ -17,14 +17,11 @@ jobs:
         working-directory: ${{ matrix.package }}
     steps:
       - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: "28"
-          gleam-version: "1.14.0"
-          rebar3-version: "3"
-      - run: gleam deps download
-      - run: gleam test
-      - run: gleam format --check src
+      - uses: cachix/install-nix-action@v31
+      - run: nix develop . --command gleam --version
+      - run: nix develop . --command gleam deps download
+      - run: nix develop . --command gleam test
+      - run: nix develop . --command gleam format --check src
 
   nix-build:
     runs-on: ubuntu-latest
