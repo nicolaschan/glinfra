@@ -1,7 +1,6 @@
 import glinfra/blueprint/app
 import glinfra/blueprint/image
 import glinfra/blueprint/stack.{type Stack}
-import glinfra/blueprint/storage
 
 pub fn stack() -> Stack {
   let relay_image =

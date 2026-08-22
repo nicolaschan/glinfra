@@ -30,6 +30,9 @@ spec:
         ports:
         - containerPort: 6767
           protocol: TCP
+        env:
+        - name: PASEO_HOSTNAMES
+          value: "paseo.app.zeromap.net"
         envFrom:
         - secretRef:
             name: paseo-secret
