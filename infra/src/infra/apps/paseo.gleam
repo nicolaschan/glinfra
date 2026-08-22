@@ -18,6 +18,7 @@ pub fn stack() -> Stack {
     )
     |> app.add_storage("/home/paseo", storage.ref(paseo_home))
     |> app.add_storage("/workspace", storage.ref(paseo_workspace))
+    |> app.add_env_from_secret_name("paseo-secret")
     |> app.with_image_pull_policy(deployment.Always)
 
   stack.new("paseo")

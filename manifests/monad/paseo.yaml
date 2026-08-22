@@ -30,6 +30,9 @@ spec:
         ports:
         - containerPort: 6767
           protocol: TCP
+        envFrom:
+        - secretRef:
+            name: paseo-secret
         volumeMounts:
         - mountPath: "/workspace"
           name: paseo-workspace-volume
