@@ -3,6 +3,7 @@ import glinfra/blueprint/app
 import glinfra/blueprint/job
 import glinfra/blueprint/stack.{type Stack}
 import glinfra/blueprint/storage
+import glinfra/k8s/deployment
 
 const bell_env = [
   #("WEBSERVER_PORT", "8080"),
@@ -32,6 +33,7 @@ pub fn stack() -> Stack {
     |> app.image("ghcr.io/nicolaschan/bell:v4.12.3")
     |> app.mount_pvc("/bell/schedules", storage.readonly_ref(schedule_storage))
     |> app.add_envs(bell_env)
+    |> app.with_image_pull_policy(deployment.Always)
     |> with_disabled_postgres()
 
   stack.new("bell")
